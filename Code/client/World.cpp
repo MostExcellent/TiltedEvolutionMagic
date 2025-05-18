@@ -33,6 +33,19 @@ World::World()
     , m_modSystem(m_dispatcher)
     , m_lastFrameTime{std::chrono::high_resolution_clock::now()}
 {
+    // Set up component lifecycle hooks for automatic entity map management
+    on_construct<FormIdComponent>().connect<&World::OnFormIdComponentAdded>(this);
+    on_destroy<FormIdComponent>().connect<&World::OnFormIdComponentRemoved>(this);
+    
+    on_construct<LocalComponent>().connect<&World::OnLocalComponentAdded>(this);
+    on_destroy<LocalComponent>().connect<&World::OnLocalComponentRemoved>(this);
+    
+    on_construct<RemoteComponent>().connect<&World::OnRemoteComponentAdded>(this);
+    on_destroy<RemoteComponent>().connect<&World::OnRemoteComponentRemoved>(this);
+    
+    on_construct<ObjectComponent>().connect<&World::OnObjectComponentAdded>(this);
+    on_destroy<ObjectComponent>().connect<&World::OnObjectComponentRemoved>(this);
+
     ctx().emplace<ImguiService>();
     ctx().emplace<DiscoveryService>(*this, m_dispatcher);
     ctx().emplace<OverlayService>(*this, m_transport, m_dispatcher);
@@ -106,4 +119,258 @@ void World::Create() noexcept
 World& World::Get() noexcept
 {
     return entt::locator<World>::value();
+}
+
+// Entity lookup methods
+std::optional<entt::entity> World::GetEntityByServerId(uint32_t aServerId) const noexcept
+{
+    std::shared_lock<std::shared_mutex> lock(m_lookupMutex);
+    
+    const auto it = m_serverIdMap.find(aServerId);
+    if (it != m_serverIdMap.end())
+        return it->second;
+    
+    return std::nullopt;
+}
+
+std::optional<entt::entity> World::GetEntityByFormId(uint32_t aFormId) const noexcept
+{
+    std::shared_lock<std::shared_mutex> lock(m_lookupMutex);
+    
+    const auto it = m_formIdMap.find(aFormId);
+    if (it != m_formIdMap.end())
+        return it->second;
+    
+    return std::nullopt;
+}
+
+// Entity registration methods
+void World::RegisterEntityServerId(entt::entity aEntity, uint32_t aServerId) noexcept
+{
+    std::unique_lock<std::shared_mutex> lock(m_lookupMutex);
+    
+    // Add to server ID map
+    m_serverIdMap[aServerId] = aEntity;
+    
+    // Update entity mapping
+    auto entityIt = m_entityMap.find(aEntity);
+    if (entityIt != m_entityMap.end())
+    {
+        // Create a new pair with updated ServerId and existing FormId
+        uint32_t formId = entityIt->second.first;
+        m_entityMap.erase(entityIt);
+        m_entityMap[aEntity] = std::make_pair(formId, aServerId);
+    }
+    else
+    {
+        // Create new entry with default FormId (will be updated later if needed)
+        m_entityMap[aEntity] = std::make_pair(0, aServerId);
+    }
+    
+    spdlog::debug("Registered entity {:X} with server ID {:X}", static_cast<uint32_t>(aEntity), aServerId);
+}
+
+void World::RegisterEntityFormId(entt::entity aEntity, uint32_t aFormId) noexcept
+{
+    std::unique_lock<std::shared_mutex> lock(m_lookupMutex);
+    
+    // Add to form ID map
+    m_formIdMap[aFormId] = aEntity;
+    
+    // Update entity mapping
+    auto entityIt = m_entityMap.find(aEntity);
+    if (entityIt != m_entityMap.end())
+    {
+        // Create a new pair with existing ServerId and updated FormId
+        uint32_t serverId = entityIt->second.second;
+        m_entityMap.erase(entityIt);
+        m_entityMap[aEntity] = std::make_pair(aFormId, serverId);
+    }
+    else
+    {
+        // Create new entry with default ServerId (will be updated later if needed)
+        m_entityMap[aEntity] = std::make_pair(aFormId, 0);
+    }
+    
+    spdlog::debug("Registered entity {:X} with form ID {:X}", static_cast<uint32_t>(aEntity), aFormId);
+}
+
+// Entity unregistration methods
+void World::UnregisterEntityServerId(uint32_t aServerId) noexcept
+{
+    std::unique_lock<std::shared_mutex> lock(m_lookupMutex);
+    
+    // Find the entity with this server ID
+    auto it = m_serverIdMap.find(aServerId);
+    if (it != m_serverIdMap.end())
+    {
+        auto entity = it->second;
+        
+        // Remove from server ID map
+        m_serverIdMap.erase(it);
+        
+        // Update entity mapping if it exists
+        auto entityIt = m_entityMap.find(entity);
+        if (entityIt != m_entityMap.end())
+        {
+            // If this entity had both ServerId and FormId, create a new entry with just FormId
+            if (entityIt->second.first != 0)
+            {
+                uint32_t formId = entityIt->second.first;
+                m_entityMap.erase(entityIt);
+                m_entityMap[entity] = std::make_pair(formId, 0);
+            }
+            else
+                // If it only had ServerId, remove the entity mapping entirely
+                m_entityMap.erase(entityIt);
+        }
+        
+        spdlog::debug("Unregistered server ID {:X} from entity {:X}", aServerId, static_cast<uint32_t>(entity));
+    }
+}
+
+void World::UnregisterEntityFormId(uint32_t aFormId) noexcept
+{
+    std::unique_lock<std::shared_mutex> lock(m_lookupMutex);
+    
+    // Find the entity with this form ID
+    auto it = m_formIdMap.find(aFormId);
+    if (it != m_formIdMap.end())
+    {
+        auto entity = it->second;
+        
+        // Remove from form ID map
+        m_formIdMap.erase(it);
+        
+        // Update entity mapping if it exists
+        auto entityIt = m_entityMap.find(entity);
+        if (entityIt != m_entityMap.end())
+        {
+            // If this entity had both ServerId and FormId, create a new entry with just ServerId
+            if (entityIt->second.second != 0)
+            {
+                uint32_t serverId = entityIt->second.second;
+                m_entityMap.erase(entityIt);
+                m_entityMap[entity] = std::make_pair(0, serverId);
+            }
+            else
+                // If it only had FormId, remove the entity mapping entirely
+                m_entityMap.erase(entityIt);
+        }
+        
+        spdlog::debug("Unregistered form ID {:X} from entity {:X}", aFormId, static_cast<uint32_t>(entity));
+    }
+}
+
+void World::UnregisterEntity(entt::entity aEntity) noexcept
+{
+    std::unique_lock<std::shared_mutex> lock(m_lookupMutex);
+    
+    // Find this entity in the entity map
+    auto entityIt = m_entityMap.find(aEntity);
+    if (entityIt != m_entityMap.end())
+    {
+        const auto& [formId, serverId] = entityIt->second;
+        
+        // Remove from form ID map if it has a form ID
+        if (formId != 0)
+            m_formIdMap.erase(formId);
+        
+        // Remove from server ID map if it has a server ID
+        if (serverId != 0)
+            m_serverIdMap.erase(serverId);
+        
+        // Remove from entity map
+        m_entityMap.erase(entityIt);
+        
+        spdlog::debug("Unregistered entity {:X} with form ID {:X} and server ID {:X}", 
+                     static_cast<uint32_t>(aEntity), formId, serverId);
+    }
+}
+
+// Override destroy to ensure entity is always unregistered on destruction
+void World::destroy(entt::entity entity) noexcept
+{
+    UnregisterEntity(entity);
+    
+    entt::registry::destroy(entity);
+}
+
+// Component lifecycle event handlers
+void World::OnFormIdComponentAdded(entt::registry& registry, entt::entity entity) noexcept
+{
+    auto& component = registry.get<FormIdComponent>(entity);
+    RegisterEntityFormId(entity, component.Id);
+}
+
+void World::OnFormIdComponentRemoved(entt::registry& registry, entt::entity entity) noexcept
+{
+    // Since the component is being destroyed, we need to get its ID from the entity map
+    std::shared_lock<std::shared_mutex> lock(m_lookupMutex);
+    auto entityIt = m_entityMap.find(entity);
+    if (entityIt != m_entityMap.end() && entityIt->second.first != 0)
+    {
+        const uint32_t formId = entityIt->second.first;
+        // Unlock before calling UnregisterEntityFormId which will also lock
+        lock.unlock();
+        
+        UnregisterEntityFormId(formId);
+    }
+}
+
+void World::OnLocalComponentAdded(entt::registry& registry, entt::entity entity) noexcept
+{
+    auto& component = registry.get<LocalComponent>(entity);
+    RegisterEntityServerId(entity, component.Id);
+}
+
+void World::OnLocalComponentRemoved(entt::registry& registry, entt::entity entity) noexcept
+{
+    std::shared_lock<std::shared_mutex> lock(m_lookupMutex);
+    auto entityIt = m_entityMap.find(entity);
+    if (entityIt != m_entityMap.end() && entityIt->second.second != 0)
+    {
+        const uint32_t serverId = entityIt->second.second;
+        lock.unlock();
+        
+        UnregisterEntityServerId(serverId);
+    }
+}
+
+void World::OnRemoteComponentAdded(entt::registry& registry, entt::entity entity) noexcept
+{
+    auto& component = registry.get<RemoteComponent>(entity);
+    RegisterEntityServerId(entity, component.Id);
+}
+
+void World::OnRemoteComponentRemoved(entt::registry& registry, entt::entity entity) noexcept
+{
+    std::shared_lock<std::shared_mutex> lock(m_lookupMutex);
+    auto entityIt = m_entityMap.find(entity);
+    if (entityIt != m_entityMap.end() && entityIt->second.second != 0)
+    {
+        const uint32_t serverId = entityIt->second.second;
+        lock.unlock();
+        
+        UnregisterEntityServerId(serverId);
+    }
+}
+
+void World::OnObjectComponentAdded(entt::registry& registry, entt::entity entity) noexcept
+{
+    auto& component = registry.get<ObjectComponent>(entity);
+    RegisterEntityServerId(entity, component.Id);
+}
+
+void World::OnObjectComponentRemoved(entt::registry& registry, entt::entity entity) noexcept
+{
+    std::shared_lock<std::shared_mutex> lock(m_lookupMutex);
+    auto entityIt = m_entityMap.find(entity);
+    if (entityIt != m_entityMap.end() && entityIt->second.second != 0)
+    {
+        const uint32_t serverId = entityIt->second.second;
+        lock.unlock();
+        
+        UnregisterEntityServerId(serverId);
+    }
 }
