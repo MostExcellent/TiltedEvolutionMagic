@@ -198,6 +198,7 @@ void CharacterService::OnActorAdded(const ActorAddedEvent& acEvent) noexcept
     else
         entity = m_world.create();
 
+    // Component lifecycle hooks will automatically register this entity with the FormId
     m_world.emplace_or_replace<FormIdComponent>(entity, acEvent.FormId);
 
     ProcessNewEntity(entity);
@@ -205,25 +206,28 @@ void CharacterService::OnActorAdded(const ActorAddedEvent& acEvent) noexcept
 
 void CharacterService::OnActorRemoved(const ActorRemovedEvent& acEvent) noexcept
 {
-    auto view = m_world.view<FormIdComponent>();
-    const auto entityIt = std::find_if(view.begin(), view.end(), [view, formId = acEvent.FormId](auto aEntity) { return view.get<FormIdComponent>(aEntity).Id == formId; });
-
-    if (entityIt == view.end())
+    // Find entity by form ID (using Utils to simplify)
+    auto entityOpt = Utils::GetEntityByFormId(acEvent.FormId);
+    if (!entityOpt)
     {
         spdlog::error("Actor to remove not found in form ids map {:X}", acEvent.FormId);
         return;
     }
 
-    const auto cId = *entityIt;
+    const auto cId = entityOpt.value();
+    const auto formIdComponent = m_world.try_get<FormIdComponent>(cId);
+    if (!formIdComponent)
+    {
+        spdlog::error("FormIdComponent not found for entity {:X}", static_cast<uint32_t>(cId));
+        return;
+    }
 
-    auto& formIdComponent = view.get<FormIdComponent>(cId);
-    CancelServerAssignment(*entityIt, formIdComponent.Id);
+    // Cancel server assignment before destroying
+    CancelServerAssignment(cId, formIdComponent->Id);
 
-    if (m_world.all_of<FormIdComponent>(cId))
-        m_world.remove<FormIdComponent>(cId);
-
-    if (m_world.orphan(cId))
-        m_world.destroy(cId);
+    // Component lifecycle hooks will automatically unregister the entity
+    // Simply destroy the entity - the rest will be handled automatically
+    m_world.destroy(cId);
 
     spdlog::info("Actor removed, form id: {:X}", acEvent.FormId);
 }
@@ -322,6 +326,7 @@ void CharacterService::OnAssignCharacter(const AssignCharacterResponse& acMessag
     {
         spdlog::info("Received local actor, form id: {:X}", pActor->formID);
 
+        // Component lifecycle hooks will automatically register this entity with the ServerId
         m_world.emplace_or_replace<LocalComponent>(cEntity, acMessage.ServerId);
         auto& localAnimationComponent = m_world.emplace_or_replace<LocalAnimationComponent>(cEntity);
 
@@ -337,6 +342,7 @@ void CharacterService::OnAssignCharacter(const AssignCharacterResponse& acMessag
     {
         spdlog::info("Received remote actor, form id: {:X}, isweapondrawn: {}", pActor->formID, acMessage.IsWeaponDrawn);
 
+        // Component lifecycle hooks will automatically register this entity with the ServerId
         m_world.emplace_or_replace<RemoteComponent>(cEntity, acMessage.ServerId, formIdComponent->Id);
 
         pActor->GetExtension()->SetRemote(true);
@@ -468,6 +474,7 @@ void CharacterService::OnCharacterSpawn(const CharacterSpawnRequest& acMessage) 
         pActor->SetCommandingActor(PlayerCharacter::Get()->GetHandle());
     }
 
+    // Component lifecycle hooks will automatically register entity with ServerId
     auto& remoteComponent = m_world.emplace_or_replace<RemoteComponent>(*entity, acMessage.ServerId, pActor->formID);
 
     auto& interpolationComponent = InterpolationSystem::Setup(m_world, *entity);
@@ -621,17 +628,22 @@ void CharacterService::OnOwnershipTransfer(const NotifyOwnershipTransfer& acMess
 
 void CharacterService::OnRemoveCharacter(const NotifyRemoveCharacter& acMessage) const noexcept
 {
-    auto view = m_world.view<RemoteComponent>();
-
-    const auto itor = std::find_if(std::begin(view), std::end(view), [id = acMessage.ServerId, view](entt::entity entity) { return view.get<RemoteComponent>(entity).Id == id; });
-
-    if (itor != std::end(view))
+    // Use Utils helper to simplify entity lookup
+    auto entityOpt = Utils::GetEntityByServerId(acMessage.ServerId);
+    if (!entityOpt)
     {
-        if (auto* pFormIdComponent = m_world.try_get<FormIdComponent>(*itor))
-            CharacterService::DeleteTempActor(pFormIdComponent->Id);
-
-        DeleteRemoteEntityComponents(*itor);
+        spdlog::warn("Actor to remove not found, server id: {:X}", acMessage.ServerId);
+        return;
     }
+
+    auto entity = entityOpt.value();
+    
+    // Delete temporary actor if needed
+    if (auto* pFormIdComponent = m_world.try_get<FormIdComponent>(entity))
+        CharacterService::DeleteTempActor(pFormIdComponent->Id);
+
+    // Component lifecycle hooks will handle entity map updates automatically
+    DeleteRemoteEntityComponents(entity);
 }
 
 void CharacterService::OnNotifyRespawn(const NotifyRespawn& acMessage) const noexcept
@@ -993,6 +1005,8 @@ void CharacterService::OnNotifyRelinquishControl(const NotifyRelinquishControl& 
 
             if (m_world.all_of<LocalComponent>(entity))
             {
+                // Component lifecycle hooks will automatically handle unregistration of LocalComponent
+                // and registration of RemoteComponent
                 m_world.remove<LocalAnimationComponent, LocalComponent>(entity);
                 m_world.emplace_or_replace<RemoteComponent>(entity, acMessage.ServerId, formIdComponent.Id);
             }
@@ -1278,6 +1292,7 @@ void CharacterService::CancelServerAssignment(const entt::entity aEntity, const 
             }
         }
 
+        // Component lifecycle hooks will handle entity unregistration
         DeleteRemoteEntityComponents(aEntity);
 
         return;
@@ -1332,6 +1347,7 @@ void CharacterService::CancelServerAssignment(const entt::entity aEntity, const 
 
         m_transport.Send(request);
 
+        // Component lifecycle hooks will handle entity unregistration
         m_world.remove<LocalAnimationComponent, LocalComponent>(aEntity);
     }
 }
