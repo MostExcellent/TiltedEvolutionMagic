@@ -28,33 +28,36 @@ static void Assert(const char* apExpression, const char* apMessage)
 }
 
 std::optional<uint32_t> GetServerId(entt::entity aEntity) noexcept;
+std::optional<entt::entity> GetEntityByFormId(uint32_t aFormId) noexcept;
+std::optional<entt::entity> GetEntityByServerId(uint32_t aServerId) noexcept;
 
 template <class T> T* GetByServerId(const uint32_t acServerId) noexcept
 {
-    auto view = World::Get().view<FormIdComponent>();
-
-    for (entt::entity entity : view)
+    auto entityOpt = World::Get().GetEntityByServerId(acServerId);
+    if (!entityOpt)
     {
-        std::optional<uint32_t> serverIdRes = GetServerId(entity);
-        if (!serverIdRes.has_value())
-            continue;
-
-        uint32_t serverId = serverIdRes.value();
-
-        if (serverId == acServerId)
-        {
-            const auto& formIdComponent = view.get<FormIdComponent>(entity);
-            TESForm* pForm = TESForm::GetById(formIdComponent.Id);
-
-            if (pForm != nullptr)
-            {
-                return Cast<T>(pForm);
-            }
-        }
+        spdlog::warn("Entity not found for server id {:X}", acServerId);
+        return nullptr;
     }
 
-    spdlog::warn("Form not found for server id {:X}", acServerId);
-    return nullptr;
+    auto& world = World::Get();
+    auto entity = entityOpt.value();
+    
+    const auto* pFormIdComponent = world.try_get<FormIdComponent>(entity);
+    if (!pFormIdComponent)
+    {
+        spdlog::warn("FormIdComponent not found for entity with server id {:X}", acServerId);
+        return nullptr;
+    }
+    
+    TESForm* pForm = TESForm::GetById(pFormIdComponent->Id);
+    if (!pForm)
+    {
+        spdlog::warn("Form not found for server id {:X} (FormId: {:X})", acServerId, pFormIdComponent->Id);
+        return nullptr;
+    }
+    
+    return Cast<T>(pForm);
 }
 
 void ShowHudMessage(const TiltedPhoques::String& acMessage);

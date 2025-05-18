@@ -28,6 +28,16 @@ std::optional<uint32_t> GetServerId(entt::entity aEntity) noexcept
     return {serverId};
 }
 
+std::optional<entt::entity> GetEntityByFormId(uint32_t aFormId) noexcept
+{
+    return World::Get().GetEntityByFormId(aFormId);
+}
+
+std::optional<entt::entity> GetEntityByServerId(uint32_t aServerId) noexcept
+{
+    return World::Get().GetEntityByServerId(aServerId);
+}
+
 void ShowHudMessage(const TiltedPhoques::String& acMessage)
 {
     using TShowHudMessage = void(const char*, const char*, bool);

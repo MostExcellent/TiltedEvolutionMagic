@@ -12,6 +12,7 @@
 #include <Systems/ModSystem.h>
 
 #include <Structs/ServerSettings.h>
+#include <shared_mutex>
 
 struct World : entt::registry
 {
@@ -42,6 +43,19 @@ struct World : entt::registry
 
     [[nodiscard]] uint64_t GetTick() const noexcept;
 
+    // Entity lookup methods
+    [[nodiscard]] std::optional<entt::entity> GetEntityByServerId(uint32_t aServerId) const noexcept;
+    [[nodiscard]] std::optional<entt::entity> GetEntityByFormId(uint32_t aFormId) const noexcept;
+    
+    // Entity registration methods
+    void RegisterEntityServerId(entt::entity aEntity, uint32_t aServerId) noexcept;
+    void RegisterEntityFormId(entt::entity aEntity, uint32_t aFormId) noexcept;
+    
+    // Entity unregistration methods
+    void UnregisterEntityServerId(uint32_t aServerId) noexcept;
+    void UnregisterEntityFormId(uint32_t aFormId) noexcept;
+    void UnregisterEntity(entt::entity aEntity) noexcept;
+
     static void Create() noexcept;
     [[nodiscard]] static World& Get() noexcept;
 
@@ -53,4 +67,12 @@ private:
     ServerSettings m_serverSettings{};
 
     std::chrono::high_resolution_clock::time_point m_lastFrameTime;
+    
+    // Entity lookup maps
+    TiltedPhoques::Map<uint32_t, entt::entity> m_serverIdMap;   // ServerId -> Entity
+    TiltedPhoques::Map<uint32_t, entt::entity> m_formIdMap;     // FormId -> Entity
+    TiltedPhoques::Map<entt::entity, std::pair<uint32_t, uint32_t>> m_entityMap; // Entity -> (FormId, ServerId)
+    
+    // Thread safety
+    mutable std::shared_mutex m_lookupMutex;
 };

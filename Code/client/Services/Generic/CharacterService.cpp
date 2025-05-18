@@ -199,6 +199,7 @@ void CharacterService::OnActorAdded(const ActorAddedEvent& acEvent) noexcept
         entity = m_world.create();
 
     m_world.emplace_or_replace<FormIdComponent>(entity, acEvent.FormId);
+    m_world.RegisterEntityFormId(entity, acEvent.FormId);
 
     ProcessNewEntity(entity);
 }
@@ -223,7 +224,10 @@ void CharacterService::OnActorRemoved(const ActorRemovedEvent& acEvent) noexcept
         m_world.remove<FormIdComponent>(cId);
 
     if (m_world.orphan(cId))
+    {
+        m_world.UnregisterEntity(cId);
         m_world.destroy(cId);
+    }
 
     spdlog::info("Actor removed, form id: {:X}", acEvent.FormId);
 }
@@ -309,6 +313,7 @@ void CharacterService::OnAssignCharacter(const AssignCharacterResponse& acMessag
     if (!pActor)
     {
         spdlog::error(__FUNCTION__ ": actor not found, form id: {:X}", formIdComponent->Id);
+        m_world.UnregisterEntity(cEntity);
         m_world.destroy(cEntity);
         return;
     }
@@ -323,6 +328,7 @@ void CharacterService::OnAssignCharacter(const AssignCharacterResponse& acMessag
         spdlog::info("Received local actor, form id: {:X}", pActor->formID);
 
         m_world.emplace_or_replace<LocalComponent>(cEntity, acMessage.ServerId);
+        m_world.RegisterEntityServerId(cEntity, acMessage.ServerId);
         auto& localAnimationComponent = m_world.emplace_or_replace<LocalAnimationComponent>(cEntity);
 
         pActor->GetExtension()->SetRemote(false);
@@ -338,6 +344,7 @@ void CharacterService::OnAssignCharacter(const AssignCharacterResponse& acMessag
         spdlog::info("Received remote actor, form id: {:X}, isweapondrawn: {}", pActor->formID, acMessage.IsWeaponDrawn);
 
         m_world.emplace_or_replace<RemoteComponent>(cEntity, acMessage.ServerId, formIdComponent->Id);
+        m_world.RegisterEntityServerId(cEntity, acMessage.ServerId);
 
         pActor->GetExtension()->SetRemote(true);
 
@@ -469,6 +476,8 @@ void CharacterService::OnCharacterSpawn(const CharacterSpawnRequest& acMessage) 
     }
 
     auto& remoteComponent = m_world.emplace_or_replace<RemoteComponent>(*entity, acMessage.ServerId, pActor->formID);
+    m_world.RegisterEntityServerId(*entity, acMessage.ServerId);
+    m_world.RegisterEntityFormId(*entity, pActor->formID);
 
     auto& interpolationComponent = InterpolationSystem::Setup(m_world, *entity);
     interpolationComponent.Position = acMessage.Position;
@@ -630,6 +639,10 @@ void CharacterService::OnRemoveCharacter(const NotifyRemoveCharacter& acMessage)
         if (auto* pFormIdComponent = m_world.try_get<FormIdComponent>(*itor))
             CharacterService::DeleteTempActor(pFormIdComponent->Id);
 
+        // Unregister the entity from ServerID lookup before removing components
+        if (auto* pRemoteComponent = m_world.try_get<RemoteComponent>(*itor))
+            m_world.UnregisterEntityServerId(pRemoteComponent->Id);
+            
         DeleteRemoteEntityComponents(*itor);
     }
 }
@@ -993,8 +1006,15 @@ void CharacterService::OnNotifyRelinquishControl(const NotifyRelinquishControl& 
 
             if (m_world.all_of<LocalComponent>(entity))
             {
+                // Unregister with LocalComponent ID before removing it
+                if (auto* pLocalComponent = m_world.try_get<LocalComponent>(entity))
+                    m_world.UnregisterEntityServerId(pLocalComponent->Id);
+                    
                 m_world.remove<LocalAnimationComponent, LocalComponent>(entity);
                 m_world.emplace_or_replace<RemoteComponent>(entity, acMessage.ServerId, formIdComponent.Id);
+                
+                // Register with new RemoteComponent ID
+                m_world.RegisterEntityServerId(entity, acMessage.ServerId);
             }
 
             Actor* pActor = Cast<Actor>(TESForm::GetById(formIdComponent.Id));
