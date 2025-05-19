@@ -73,7 +73,7 @@ void ScriptExtenderPluginList::Init()
             }
         }
     }
-    spdlog::info("Found {} SKSE plugins", m_Plugins.size());
+    spdlog::debug("Found {} SKSE plugins", m_Plugins.size());
     m_bPluginsChecked = true;
 }
 

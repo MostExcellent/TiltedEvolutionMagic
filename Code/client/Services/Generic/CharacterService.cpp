@@ -607,14 +607,9 @@ void CharacterService::OnSentAnimEventEvent(const SentAnimEventEvent& acAnimEven
         return;
     }
     LocalComponent* pLocalComponent = m_world.try_get<LocalComponent>(*entityOpt);
-    if (!pLocalComponent)
+    if (!pLocalComponent || !m_relevantDirectAnimEvents.contains(acAnimEvent.eventName))
     {
-        spdlog::warn("OnSentAnimEventEvent: failed to find local component for form id: {:X}", acAnimEvent.formId);
         return;
-    }
-    if (!m_relevantDirectAnimEvents.contains(acAnimEvent.eventName))
-    {
-        spdlog::warn("OnSentAnimEventEvent: event: {} is not relevant", acAnimEvent.eventName);
     }
     DirectAnimEventRequest request{};
     request.gameId = pLocalComponent->Id;
@@ -638,16 +633,15 @@ void CharacterService::OnNotifyDirectAnimEvent(const NotifyDirectAnimEvent& acAn
         {
             BSFixedString eventStringToSend(acAnimEvent.eventString.c_str());
             bool result = DirectSendAnimEvent(&pRefr->animationGraphHolder, &eventStringToSend);
-            spdlog::info("OnNotifyDirectAnimEvent: sent event: {} to remote actor: {:X} with result: {}", acAnimEvent.eventString, pRefr->formID, result);
+            if (!result)
+            {
+                spdlog::error("OnNotifyDirectAnimEvent: failed to send event: {} to remote actor with local formId {} and server id: {:X}", acAnimEvent.eventString, pRefr->formID, pRemoteComponent->Id);
+            }
         }
         else
         {
             spdlog::error("OnNotifyDirectAnimEvent: failed to find remote component for form id: {:X}", pRefr->formID);
         }
-    }
-    else if (!m_relevantDirectAnimEvents.contains(acAnimEvent.eventString))
-    {
-        spdlog::info("OnNotifyDirectAnimEvent: event: {} received from remote actor with local formId {} is not relevant", acAnimEvent.eventString, pRefr->formID);
     }
 }
 
@@ -1776,7 +1770,7 @@ void CharacterService::LoadRelevantDirectAnimEvents()
     auto* PluginList = ScriptExtenderPluginList::Get();
     if (!PluginList || PluginList->GetPlugins().empty())
     {
-        spdlog::info("No plugins found, no mod AnimEvents need to be replicated");
+        spdlog::debug("No plugins found, no mod AnimEvents need to be replicated");
         return;
     }
 
@@ -1808,7 +1802,7 @@ void CharacterService::LoadRelevantDirectAnimEvents()
                             if (PluginList->HasPlugin(pluginName))
                             {
                                 isRelevant = true;
-                                spdlog::debug("Found relevant plugin: {}", pluginName);
+                                // spdlog::debug("Found relevant plugin: {}", pluginName);
                                 break;
                             }
                         }
@@ -1828,8 +1822,6 @@ void CharacterService::LoadRelevantDirectAnimEvents()
                                 //String animEvent = Utils::NormalizedLowerFromStlString(eventNode.as<std::string>());
                                 
                                 m_relevantDirectAnimEvents.emplace(animEvent);
-                                
-                                spdlog::info("Registered AnimEvent for replication: {}, Length: {}", animEvent, animEvent.length());
                             }
                         }
                     }
@@ -1845,10 +1837,10 @@ void CharacterService::LoadRelevantDirectAnimEvents()
             spdlog::error("Error processing file {}: {}", entry.path().string(), e.what());
         }
     }
-    spdlog::info("Found {} mods with {} configured direct AnimEvents", relevantModCount, m_relevantDirectAnimEvents.size());
+    spdlog::debug("Found {} mods with {} configured direct AnimEvents", relevantModCount, m_relevantDirectAnimEvents.size());
     // log all event names
     for (const auto& event : m_relevantDirectAnimEvents)
     {
-        spdlog::info("Registered AnimEvent for replication: {}", event);
+        spdlog::debug("Registered AnimEvent for replication: {}", event);
     }
 }

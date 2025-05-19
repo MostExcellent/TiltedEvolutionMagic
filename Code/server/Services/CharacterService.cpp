@@ -579,10 +579,6 @@ void CharacterService::OnDirectAnimEventRequest(const PacketEvent<DirectAnimEven
     {
         spdlog::error("{}: SendToPlayersInRange failed", __FUNCTION__);
     }
-    else
-    {
-        spdlog::info("{}: Sent DirectAnimEventRequest for entity {:x}", __FUNCTION__, gameId);
-    }
 }
 
 void CharacterService::CreateCharacter(const PacketEvent<AssignCharacterRequest>& acMessage) const noexcept

@@ -30,7 +30,6 @@ bool TP_MAKE_THISCALL(HookSendAnimationEvent, IAnimationGraphManagerHolder, BSFi
 
 bool DirectSendAnimEvent(IAnimationGraphManagerHolder* a_pHolder, BSFixedString* a_pEventName)
 {
-    spdlog::info("Sent AnimEvent: {} directly", a_pEventName->AsAscii());
     return TiltedPhoques::ThisCall(RealSendAnimationEvent, a_pHolder, a_pEventName);
 }
 
