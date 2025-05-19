@@ -58,8 +58,24 @@ struct World : entt::registry
 
     static void Create() noexcept;
     [[nodiscard]] static World& Get() noexcept;
+    
+    // Override destroy to ensure entity is unregistered
+    void destroy(entt::entity entity) noexcept;
 
 private:
+    // Component lifecycle event handlers
+    void OnFormIdComponentAdded(entt::registry& registry, entt::entity entity) noexcept;
+    void OnFormIdComponentRemoved(entt::registry& registry, entt::entity entity) noexcept;
+    
+    void OnLocalComponentAdded(entt::registry& registry, entt::entity entity) noexcept;
+    void OnLocalComponentRemoved(entt::registry& registry, entt::entity entity) noexcept;
+    
+    void OnRemoteComponentAdded(entt::registry& registry, entt::entity entity) noexcept;
+    void OnRemoteComponentRemoved(entt::registry& registry, entt::entity entity) noexcept;
+    
+    void OnObjectComponentAdded(entt::registry& registry, entt::entity entity) noexcept;
+    void OnObjectComponentRemoved(entt::registry& registry, entt::entity entity) noexcept;
+
     entt::dispatcher m_dispatcher;
     RunnerService m_runner;
     TransportService m_transport;

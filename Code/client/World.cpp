@@ -33,6 +33,19 @@ World::World()
     , m_modSystem(m_dispatcher)
     , m_lastFrameTime{std::chrono::high_resolution_clock::now()}
 {
+    // Set up component lifecycle hooks for automatic entity map management
+    on_construct<FormIdComponent>().connect<&World::OnFormIdComponentAdded>(this);
+    on_destroy<FormIdComponent>().connect<&World::OnFormIdComponentRemoved>(this);
+    
+    on_construct<LocalComponent>().connect<&World::OnLocalComponentAdded>(this);
+    on_destroy<LocalComponent>().connect<&World::OnLocalComponentRemoved>(this);
+    
+    on_construct<RemoteComponent>().connect<&World::OnRemoteComponentAdded>(this);
+    on_destroy<RemoteComponent>().connect<&World::OnRemoteComponentRemoved>(this);
+    
+    on_construct<ObjectComponent>().connect<&World::OnObjectComponentAdded>(this);
+    on_destroy<ObjectComponent>().connect<&World::OnObjectComponentRemoved>(this);
+
     ctx().emplace<ImguiService>();
     ctx().emplace<DiscoveryService>(*this, m_dispatcher);
     ctx().emplace<OverlayService>(*this, m_transport, m_dispatcher);
@@ -272,5 +285,97 @@ void World::UnregisterEntity(entt::entity aEntity) noexcept
         
         spdlog::debug("Unregistered entity {:X} with form ID {:X} and server ID {:X}", 
                      static_cast<uint32_t>(aEntity), formId, serverId);
+    }
+}
+
+// Override destroy to ensure entity is always unregistered on destruction
+void World::destroy(entt::entity entity) noexcept
+{
+    // Make sure entity is completely unregistered before destruction
+    UnregisterEntity(entity);
+    
+    // Call parent class destroy method to actually destroy the entity
+    entt::registry::destroy(entity);
+}
+
+// Component lifecycle event handlers
+void World::OnFormIdComponentAdded(entt::registry& registry, entt::entity entity) noexcept
+{
+    auto& component = registry.get<FormIdComponent>(entity);
+    RegisterEntityFormId(entity, component.Id);
+}
+
+void World::OnFormIdComponentRemoved(entt::registry& registry, entt::entity entity) noexcept
+{
+    // Since the component is being destroyed, we need to get its ID from the entity map
+    std::shared_lock<std::shared_mutex> lock(m_lookupMutex);
+    auto entityIt = m_entityMap.find(entity);
+    if (entityIt != m_entityMap.end() && entityIt->second.first != 0)
+    {
+        const uint32_t formId = entityIt->second.first;
+        // Unlock before calling UnregisterEntityFormId which will also lock
+        lock.unlock();
+        
+        UnregisterEntityFormId(formId);
+    }
+}
+
+void World::OnLocalComponentAdded(entt::registry& registry, entt::entity entity) noexcept
+{
+    auto& component = registry.get<LocalComponent>(entity);
+    RegisterEntityServerId(entity, component.Id);
+}
+
+void World::OnLocalComponentRemoved(entt::registry& registry, entt::entity entity) noexcept
+{
+    // Since the component is being destroyed, we need to get its ID from the entity map
+    std::shared_lock<std::shared_mutex> lock(m_lookupMutex);
+    auto entityIt = m_entityMap.find(entity);
+    if (entityIt != m_entityMap.end() && entityIt->second.second != 0)
+    {
+        const uint32_t serverId = entityIt->second.second;
+        lock.unlock(); // Unlock before calling UnregisterEntityServerId which will also lock
+        
+        UnregisterEntityServerId(serverId);
+    }
+}
+
+void World::OnRemoteComponentAdded(entt::registry& registry, entt::entity entity) noexcept
+{
+    auto& component = registry.get<RemoteComponent>(entity);
+    RegisterEntityServerId(entity, component.Id);
+}
+
+void World::OnRemoteComponentRemoved(entt::registry& registry, entt::entity entity) noexcept
+{
+    // Since the component is being destroyed, we need to get its ID from the entity map
+    std::shared_lock<std::shared_mutex> lock(m_lookupMutex);
+    auto entityIt = m_entityMap.find(entity);
+    if (entityIt != m_entityMap.end() && entityIt->second.second != 0)
+    {
+        const uint32_t serverId = entityIt->second.second;
+        lock.unlock(); // Unlock before calling UnregisterEntityServerId which will also lock
+        
+        UnregisterEntityServerId(serverId);
+    }
+}
+
+void World::OnObjectComponentAdded(entt::registry& registry, entt::entity entity) noexcept
+{
+    auto& component = registry.get<ObjectComponent>(entity);
+    RegisterEntityServerId(entity, component.Id);
+}
+
+void World::OnObjectComponentRemoved(entt::registry& registry, entt::entity entity) noexcept
+{
+    // Since the component is being destroyed, we need to get its ID from the entity map
+    std::shared_lock<std::shared_mutex> lock(m_lookupMutex);
+    auto entityIt = m_entityMap.find(entity);
+    if (entityIt != m_entityMap.end() && entityIt->second.second != 0)
+    {
+        const uint32_t serverId = entityIt->second.second;
+        lock.unlock(); // Unlock before calling UnregisterEntityServerId which will also lock
+        
+        UnregisterEntityServerId(serverId);
     }
 }
