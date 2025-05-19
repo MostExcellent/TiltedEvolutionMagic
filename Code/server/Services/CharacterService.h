@@ -23,6 +23,7 @@ struct RequestRespawn;
 struct SyncExperienceRequest;
 struct DialogueRequest;
 struct SubtitleRequest;
+struct DirectAnimEventRequest;
 
 /**
  * @brief Manages player and actor state.
@@ -54,6 +55,7 @@ protected:
     void OnSyncExperienceRequest(const PacketEvent<SyncExperienceRequest>& acMessage) const noexcept;
     void OnDialogueRequest(const PacketEvent<DialogueRequest>& acMessage) const noexcept;
     void OnSubtitleRequest(const PacketEvent<SubtitleRequest>& acMessage) const noexcept;
+    void OnDirectAnimEventRequest(const PacketEvent<DirectAnimEventRequest>& acMessage) const noexcept;
 
     void CreateCharacter(const PacketEvent<AssignCharacterRequest>& acMessage) const noexcept;
     void TransferOwnership(Player* apPlayer, const uint32_t acServerId, const ActorData& acActorData) const noexcept;
@@ -84,4 +86,5 @@ private:
     entt::scoped_connection m_syncExperienceConnection;
     entt::scoped_connection m_dialogueConnection;
     entt::scoped_connection m_subtitleConnection;
+    entt::scoped_connection m_sentAnimEventConnection;
 };

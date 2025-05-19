@@ -1,0 +1,5 @@
+Mod:
+    Plugins:
+        - TrueDirectionalMovement.dll
+    AnimEvents:
+        - TDM_Turn_180

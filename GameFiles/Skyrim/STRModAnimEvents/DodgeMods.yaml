@@ -1,0 +1,22 @@
+Mod:
+    Plugins:
+        - TK_Dodge_RE.dll
+    AnimEvents:
+        - TKDodgeForward
+        - TKDodgeBack
+        - TKDodgeRight
+        - TKDodgeLeft
+---
+Mod:
+    Plugins:
+        - DodgeFramework.dll
+    AnimEvents:
+        - Dodge_N
+        - Dodge_F
+        - Dodge_B
+        - Dodge_L
+        - Dodge_R
+        - Dodge_LB
+        - Dodge_LF
+        - Dodge_RB
+        - Dodge_RF

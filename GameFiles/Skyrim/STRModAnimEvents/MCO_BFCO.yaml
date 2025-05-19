@@ -1,0 +1,11 @@
+Mod:
+    Plugins:
+        - MCO.dll
+    AnimEvents:
+        - MCO_EndAnimation
+---
+Mod:
+    Plugins:
+        - BFCO.dll
+    AnimEvents:
+        - BFCO_MoveStart

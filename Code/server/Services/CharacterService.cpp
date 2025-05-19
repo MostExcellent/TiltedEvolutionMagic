@@ -39,6 +39,8 @@
 #include <Messages/NotifySubtitle.h>
 #include <Messages/NotifyActorTeleport.h>
 #include <Messages/NotifyRelinquishControl.h>
+#include <Messages/DirectAnimEventRequest.h>
+#include <Messages/NotifyDirectAnimEvent.h>
 
 namespace
 {
@@ -64,6 +66,7 @@ CharacterService::CharacterService(World& aWorld, entt::dispatcher& aDispatcher)
     , m_syncExperienceConnection(aDispatcher.sink<PacketEvent<SyncExperienceRequest>>().connect<&CharacterService::OnSyncExperienceRequest>(this))
     , m_dialogueConnection(aDispatcher.sink<PacketEvent<DialogueRequest>>().connect<&CharacterService::OnDialogueRequest>(this))
     , m_subtitleConnection(aDispatcher.sink<PacketEvent<SubtitleRequest>>().connect<&CharacterService::OnSubtitleRequest>(this))
+    , m_sentAnimEventConnection(aDispatcher.sink<PacketEvent<DirectAnimEventRequest>>().connect<&CharacterService::OnDirectAnimEventRequest>(this))
 {
 }
 
@@ -549,6 +552,37 @@ void CharacterService::OnSubtitleRequest(const PacketEvent<SubtitleRequest>& acM
     const entt::entity cEntity = static_cast<entt::entity>(message.ServerId);
     if (!GameServer::Get()->SendToPlayersInRange(notify, cEntity, acMessage.GetSender()))
         spdlog::error("{}: SendToPlayersInRange failed", __FUNCTION__);
+}
+
+void CharacterService::OnDirectAnimEventRequest(const PacketEvent<DirectAnimEventRequest>& acMessage) const noexcept
+{
+    auto& message = acMessage.Packet;
+
+    const auto gameId = message.gameId;
+    const auto eventString = message.eventString;
+
+    // Create notification
+    NotifyDirectAnimEvent notify{};
+    notify.gameId = gameId;
+    notify.eventString = eventString;
+
+    // The client is sending a server ID (entity ID), not a form ID
+    const entt::entity entity = static_cast<entt::entity>(gameId);
+    
+    if (!m_world.valid(entity))
+    {
+        spdlog::warn("{}: No entity found for server id: {:x}", __FUNCTION__, gameId);
+        return;
+    }
+
+    if (!GameServer::Get()->SendToPlayersInRange(notify, entity, acMessage.pPlayer))
+    {
+        spdlog::error("{}: SendToPlayersInRange failed", __FUNCTION__);
+    }
+    else
+    {
+        spdlog::info("{}: Sent DirectAnimEventRequest for entity {:x}", __FUNCTION__, gameId);
+    }
 }
 
 void CharacterService::CreateCharacter(const PacketEvent<AssignCharacterRequest>& acMessage) const noexcept

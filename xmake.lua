@@ -47,7 +47,8 @@ add_requires(
 if is_plat("windows") then
     add_requires(
         "discord 3.2.1", 
-        "imgui v1.89.7"
+        "imgui v1.89.7",
+        "yaml-cpp 0.8.0"
     )
 end
 

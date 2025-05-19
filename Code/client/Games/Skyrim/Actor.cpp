@@ -54,6 +54,7 @@
 #include <Forms/TESObjectARMO.h>
 
 #include <ModCompat/BehaviorVar.h>
+#include <Games/Skyrim/DirectAnimEvents.h>
 
 #ifdef SAVE_STUFF
 
@@ -890,7 +891,9 @@ void Actor::FixVampireLordModel() noexcept
     if (isLevitating)
     {
         BSFixedString levitation("LevitationToggle");
-        SendAnimationEvent(&levitation);
+        // SendAnimationEvent(&levitation);
+        // Bypass our own hook, don't need to replicate this directly
+        DirectSendAnimEvent(&animationGraphHolder, &levitation);
     }
 
     // TODO: weapon draw code does not seem to take care of this

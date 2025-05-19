@@ -1,0 +1,5 @@
+Mod:
+    Plugins:
+        - Precision.dll
+    AnimEvents:
+        - Collision_RecoilStop

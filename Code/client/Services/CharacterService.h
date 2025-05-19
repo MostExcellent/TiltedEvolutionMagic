@@ -10,6 +10,9 @@ struct DisconnectedEvent;
 struct EquipmentChangeEvent;
 struct FormIdComponent;
 struct ActionEvent;
+struct SentAnimEventEvent;
+struct DirectAnimEventRequest;
+struct NotifyDirectAnimEvent;
 struct AssignCharacterResponse;
 struct CharacterSpawnRequest;
 struct ServerReferencesMoveRequest;
@@ -69,6 +72,8 @@ struct CharacterService
     void OnCharacterSpawn(const CharacterSpawnRequest& acMessage) const noexcept;
     void OnReferencesMoveRequest(const ServerReferencesMoveRequest& acMessage) const noexcept;
     void OnActionEvent(const ActionEvent& acActionEvent) const noexcept;
+    void OnSentAnimEventEvent(const SentAnimEventEvent& acAnimEvent) const noexcept;
+    void OnNotifyDirectAnimEvent(const NotifyDirectAnimEvent& acAnimEvent) const noexcept;
     void OnFactionsChanges(const NotifyFactionsChanges& acEvent) const noexcept;
     void OnOwnershipTransfer(const NotifyOwnershipTransfer& acMessage) const noexcept;
     void OnRemoveCharacter(const NotifyRemoveCharacter& acMessage) const noexcept;
@@ -108,6 +113,9 @@ private:
     void RunExperienceUpdates() noexcept;
     void ApplyCachedWeaponDraws(const UpdateEvent& acUpdateEvent) noexcept;
 
+    void LoadRelevantDirectAnimEvents();
+    TiltedPhoques::Set<String> m_relevantDirectAnimEvents{};
+
     World& m_world;
     entt::dispatcher& m_dispatcher;
     TransportService& m_transport;
@@ -134,6 +142,8 @@ private:
     entt::scoped_connection m_referenceRemovedConnection;
     entt::scoped_connection m_updateConnection;
     entt::scoped_connection m_actionConnection;
+    entt::scoped_connection m_sentAnimEventConnection;
+    entt::scoped_connection m_notifyDirectAnimEventConnection;
     entt::scoped_connection m_factionsConnection;
     entt::scoped_connection m_ownershipTransferConnection;
     entt::scoped_connection m_removeCharacterConnection;

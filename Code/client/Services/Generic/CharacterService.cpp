@@ -1,5 +1,6 @@
 #include "Forms/TESObjectCELL.h"
 #include "Forms/TESWorldSpace.h"
+#include "ModCompat/ScriptExtenderPluginList.h"
 #include "Services/PapyrusService.h"
 #include <Services/PartyService.h>
 
@@ -33,6 +34,7 @@
 #include <Events/SubtitleEvent.h>
 #include <Events/MoveActorEvent.h>
 #include <Events/PartyJoinedEvent.h>
+#include <Events/SentAnimEventEvent.h>
 
 #include <Structs/ActionEvent.h>
 #include <Messages/CancelAssignmentRequest.h>
@@ -62,9 +64,17 @@
 #include <Messages/NotifySubtitle.h>
 #include <Messages/NotifyActorTeleport.h>
 #include <Messages/NotifyRelinquishControl.h>
+#include <Messages/DirectAnimEventRequest.h>
+#include <Messages/NotifyDirectAnimEvent.h>
 
 #include <World.h>
 #include <Games/TES.h>
+
+#include <Games/Skyrim/DirectAnimEvents.h>
+
+#include <filesystem>
+#include <immersive_launcher/launcher.h>
+#include <yaml-cpp/yaml.h>
 
 CharacterService::CharacterService(World& aWorld, entt::dispatcher& aDispatcher, TransportService& aTransport) noexcept
     : m_world(aWorld)
@@ -76,7 +86,10 @@ CharacterService::CharacterService(World& aWorld, entt::dispatcher& aDispatcher,
 
     m_updateConnection = m_dispatcher.sink<UpdateEvent>().connect<&CharacterService::OnUpdate>(this);
     m_actionConnection = m_dispatcher.sink<ActionEvent>().connect<&CharacterService::OnActionEvent>(this);
-
+    
+    m_sentAnimEventConnection = m_dispatcher.sink<SentAnimEventEvent>().connect<&CharacterService::OnSentAnimEventEvent>(this);
+    m_notifyDirectAnimEventConnection = m_dispatcher.sink<NotifyDirectAnimEvent>().connect<&CharacterService::OnNotifyDirectAnimEvent>(this);
+    
     m_connectedConnection = m_dispatcher.sink<ConnectedEvent>().connect<&CharacterService::OnConnected>(this);
     m_disconnectedConnection = m_dispatcher.sink<DisconnectedEvent>().connect<&CharacterService::OnDisconnected>(this);
 
@@ -111,6 +124,8 @@ CharacterService::CharacterService(World& aWorld, entt::dispatcher& aDispatcher,
     m_relinquishConnection = m_dispatcher.sink<NotifyRelinquishControl>().connect<&CharacterService::OnNotifyRelinquishControl>(this);
 
     m_partyJoinedConnection = aDispatcher.sink<PartyJoinedEvent>().connect<&CharacterService::OnPartyJoinedEvent>(this);
+
+    LoadRelevantDirectAnimEvents();
 }
 
 void CharacterService::DeleteRemoteEntityComponents(entt::entity aEntity) const noexcept
@@ -575,6 +590,64 @@ void CharacterService::OnActionEvent(const ActionEvent& acActionEvent) const noe
         auto& localComponent = view.get<LocalAnimationComponent>(*itor);
 
         localComponent.Append(acActionEvent);
+    }
+}
+
+void CharacterService::OnSentAnimEventEvent(const SentAnimEventEvent& acAnimEvent) const noexcept
+{
+    auto entityOpt = m_world.GetEntityByFormId(acAnimEvent.formId);
+    if (!entityOpt.has_value())
+    {
+        spdlog::error("OnSentAnimEventEvent: failed to find entity for form id: {:X}", acAnimEvent.formId);
+        return;
+    }
+    if (acAnimEvent.eventName.empty())
+    {
+        spdlog::error("OnSentAnimEventEvent: event string is empty");
+        return;
+    }
+    LocalComponent* pLocalComponent = m_world.try_get<LocalComponent>(*entityOpt);
+    if (!pLocalComponent)
+    {
+        spdlog::warn("OnSentAnimEventEvent: failed to find local component for form id: {:X}", acAnimEvent.formId);
+        return;
+    }
+    if (!m_relevantDirectAnimEvents.contains(acAnimEvent.eventName))
+    {
+        spdlog::warn("OnSentAnimEventEvent: event: {} is not relevant", acAnimEvent.eventName);
+    }
+    DirectAnimEventRequest request{};
+    request.gameId = pLocalComponent->Id;
+    request.eventString = acAnimEvent.eventName;
+    // ReSharper disable once CppExpressionWithoutSideEffects
+    m_transport.Send(request);
+}
+
+void CharacterService::OnNotifyDirectAnimEvent(const NotifyDirectAnimEvent& acAnimEvent) const noexcept
+{
+    TESObjectREFR* pRefr = Utils::GetByServerId<TESObjectREFR>(acAnimEvent.gameId);
+    if (!pRefr)
+    {
+        spdlog::error("OnNotifyDirectAnimEvent: failed to find Reference for server id: {:X}", acAnimEvent.gameId);
+        return;
+    }
+    auto entityOpt = m_world.GetEntityByFormId(pRefr->formID);
+    if (entityOpt.has_value() && m_relevantDirectAnimEvents.contains(acAnimEvent.eventString))
+    {
+        if (RemoteComponent* pRemoteComponent = m_world.try_get<RemoteComponent>(*entityOpt))
+        {
+            BSFixedString eventStringToSend(acAnimEvent.eventString.c_str());
+            bool result = DirectSendAnimEvent(&pRefr->animationGraphHolder, &eventStringToSend);
+            spdlog::info("OnNotifyDirectAnimEvent: sent event: {} to remote actor: {:X} with result: {}", acAnimEvent.eventString, pRefr->formID, result);
+        }
+        else
+        {
+            spdlog::error("OnNotifyDirectAnimEvent: failed to find remote component for form id: {:X}", pRefr->formID);
+        }
+    }
+    else if (!m_relevantDirectAnimEvents.contains(acAnimEvent.eventString))
+    {
+        spdlog::info("OnNotifyDirectAnimEvent: event: {} received from remote actor with local formId {} is not relevant", acAnimEvent.eventString, pRefr->formID);
     }
 }
 
@@ -1685,4 +1758,97 @@ void CharacterService::ApplyCachedWeaponDraws(const UpdateEvent& acUpdateEvent) 
 
     for (uint32_t id : toRemove)
         m_weaponDrawUpdates.erase(id);
+}
+
+// TODO: Make helper functions?
+void CharacterService::LoadRelevantDirectAnimEvents()
+{
+    namespace fs = std::filesystem;
+
+    fs::path configPath = launcher::GetLaunchContext()->gamePath / L"Data" / L"STRModAnimEvents";
+
+    if (!fs::exists(configPath) || !fs::is_directory(configPath))
+    {
+        spdlog::warn("STRModAnimEvents directory not found");
+        return;
+    }
+
+    auto* PluginList = ScriptExtenderPluginList::Get();
+    if (!PluginList || PluginList->GetPlugins().empty())
+    {
+        spdlog::info("No plugins found, no mod AnimEvents need to be replicated");
+        return;
+    }
+
+    int relevantModCount = 0;
+    for (const auto& entry : fs::directory_iterator(configPath))
+    {
+        // not regular file or yaml, continue
+        if (!entry.is_regular_file() || !(entry.path().extension() == ".yaml" || entry.path().extension() == ".yml"))
+            continue;
+
+        try
+        {
+            std::vector<YAML::Node> docs = YAML::LoadAllFromFile(entry.path().string());
+            spdlog::info("Processing AnimEvents file: {}", entry.path().string());
+
+            for (const auto& doc : docs)
+            {
+                if (doc["Mod"])
+                {
+                    auto modNode = doc["Mod"];
+                    bool isRelevant = false;
+
+                    // Check if any of the plugin names in the YAML are currently loaded
+                    if (modNode["Plugins"] && modNode["Plugins"].IsSequence())
+                    {
+                        for (const auto& pluginNode : modNode["Plugins"])
+                        {
+                            String pluginName = String(pluginNode.as<std::string>());
+                            if (PluginList->HasPlugin(pluginName))
+                            {
+                                isRelevant = true;
+                                spdlog::debug("Found relevant plugin: {}", pluginName);
+                                break;
+                            }
+                        }
+                    }
+
+                    // If this mod is relevant (has at least one loaded plugin),
+                    // register all its AnimEvents
+                    if (isRelevant)
+                    {
+                        relevantModCount++;
+                        
+                        if (modNode["AnimEvents"] && modNode["AnimEvents"].IsSequence())
+                        {
+                            for (const auto& eventNode : modNode["AnimEvents"])
+                            {
+                                String animEvent = String(eventNode.as<std::string>().c_str());
+                                //String animEvent = Utils::NormalizedLowerFromStlString(eventNode.as<std::string>());
+                                
+                                m_relevantDirectAnimEvents.emplace(animEvent);
+                                
+                                spdlog::info("Registered AnimEvent for replication: {}, Length: {}", animEvent, animEvent.length());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch (const YAML::Exception& e)
+        {
+            spdlog::error("Error parsing YAML file {}: {}", entry.path().string(), e.what());
+        }
+        catch (const std::exception& e)
+        {
+            spdlog::error("Error processing file {}: {}", entry.path().string(), e.what());
+        }
+    }
+    spdlog::info("Found {} mods with {} configured direct AnimEvents", relevantModCount, m_relevantDirectAnimEvents.size());
+    // log all event names
+    for (const auto& event : m_relevantDirectAnimEvents)
+    {
+        spdlog::info("Registered AnimEvent for replication: {}", event);
+    }
 }
