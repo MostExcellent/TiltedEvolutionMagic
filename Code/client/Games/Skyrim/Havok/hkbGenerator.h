@@ -1,15 +1,17 @@
 #pragma once
 
-struct hkEventContext;
+#include "hkbNode.h"
 
-struct hkbGenerator
+struct hkbGenerator : hkbNode
 {
-    virtual ~hkbGenerator();
+    ~hkbGenerator() override;
 
-    virtual void sub_01();
-    virtual void sub_02();
-    virtual void sub_03();
-    virtual void sub_04();
-    virtual void sub_05();
-    virtual void SendEvent(hkEventContext& aContext, hkEventType& aType);
+    void Unk_15() override;  // 15
+
+    virtual void Generate(const hkbContext& a_context) = 0;  // 17
+    virtual void Unk_18();                                   // 18 - { return 0; }
+    virtual void UpdateSync(const hkbContext& a_context);    // 19
+    virtual void Unk_1A();                                   // 1A - { return; }
+    virtual void Unk_1B();                                   // 1B - { return; }
 };
+static_assert(sizeof(hkbGenerator) == 0x48);

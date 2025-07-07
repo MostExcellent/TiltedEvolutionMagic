@@ -167,7 +167,7 @@ void TESObjectREFR::SaveAnimationVariables(AnimationVariables& aVariables) const
             if (!pGraph)
                 return;
 
-            if (!pGraph->behaviorGraph || !pGraph->behaviorGraph->stateMachine || !pGraph->behaviorGraph->stateMachine->name)
+            if (!pGraph->behaviorGraph || !pGraph->behaviorGraph->stateMachine || pGraph->behaviorGraph->stateMachine->name.empty())
                 return;
 
             auto* pExtendedActor = pActor->GetExtension();
@@ -202,7 +202,7 @@ void TESObjectREFR::SaveAnimationVariables(AnimationVariables& aVariables) const
             {
                 const auto idx = pDescriptor->BooleanLookUpTable[i];
 
-                if (pVariableSet->data[idx] != 0)
+                if (pVariableSet->data[idx].b)
                     aVariables.Booleans[i] = true;
             }
 
@@ -210,14 +210,14 @@ void TESObjectREFR::SaveAnimationVariables(AnimationVariables& aVariables) const
             {
                 const auto idx = pDescriptor->FloatLookupTable[i];
 
-                aVariables.Floats[i] = *reinterpret_cast<float*>(&pVariableSet->data[idx]);
+                aVariables.Floats[i] = pVariableSet->data[idx].f;
             }
 
             for (size_t i = 0; i < pDescriptor->IntegerLookupTable.size(); ++i)
             {
                 const auto idx = pDescriptor->IntegerLookupTable[i];
 
-                aVariables.Integers[i] = *reinterpret_cast<uint32_t*>(&pVariableSet->data[idx]);
+                aVariables.Integers[i] = pVariableSet->data[idx].i;
             }
         }
 
@@ -239,7 +239,7 @@ void TESObjectREFR::LoadAnimationVariables(const AnimationVariables& aVariables)
             if (!pGraph)
                 return;
 
-            if (!pGraph->behaviorGraph || !pGraph->behaviorGraph->stateMachine || !pGraph->behaviorGraph->stateMachine->name)
+            if (!pGraph->behaviorGraph || !pGraph->behaviorGraph->stateMachine || pGraph->behaviorGraph->stateMachine->name.empty())
                 return;
 
             auto* pActor = Cast<Actor>(this);
@@ -270,7 +270,7 @@ void TESObjectREFR::LoadAnimationVariables(const AnimationVariables& aVariables)
 
                 if (pVariableSet->size > idx)
                 {
-                    pVariableSet->data[idx] = aVariables.Booleans.size() > i ? aVariables.Booleans[i] : false;
+                    pVariableSet->data[idx].b = aVariables.Booleans.size() > i ? aVariables.Booleans[i] : false;
                 }
             }
 

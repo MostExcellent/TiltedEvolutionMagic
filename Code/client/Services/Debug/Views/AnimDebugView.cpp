@@ -31,7 +31,7 @@ uint64_t DisplayGraphDescriptorKey(BSAnimationGraphManager* pManager) noexcept
     auto pDescriptor = AnimationGraphDescriptorManager::Get().GetDescriptor(hash);
 
     spdlog::info("Key: {}", hash);
-    std::cout << "uint64_t key = " << hash << ";" << std::endl;
+    std::cout << "uint64_t key = " << hash << ";" << '\n';
     if (!pDescriptor)
         spdlog::error("Descriptor key not found");
 
@@ -150,39 +150,39 @@ void DebugService::DrawAnimDebugView()
                 for (size_t i = 0; i < pDescriptor->BooleanLookUpTable.size(); ++i)
                 {
                     const auto idx = pDescriptor->BooleanLookUpTable[i];
-                    bools[s_varMap[idx]] = *reinterpret_cast<bool*>(&pVariableSet->data[idx]);
+                    bools[s_varMap[idx]] = pVariableSet->data[idx].b;
                 }
 
                 for (size_t i = 0; i < pDescriptor->FloatLookupTable.size(); ++i)
                 {
                     const auto idx = pDescriptor->FloatLookupTable[i];
-                    floats[s_varMap[idx]] = *reinterpret_cast<float*>(&pVariableSet->data[idx]);
+                    floats[s_varMap[idx]] = pVariableSet->data[idx].f;
                 }
 
                 for (size_t i = 0; i < pDescriptor->IntegerLookupTable.size(); ++i)
                 {
                     const auto idx = pDescriptor->IntegerLookupTable[i];
-                    ints[s_varMap[idx]] = *reinterpret_cast<int*>(&pVariableSet->data[idx]);
+                    ints[s_varMap[idx]] = pVariableSet->data[idx].i;
                 }
 
                 if (ImGui::Button("Dump variable values"))
                 {
-                    std::cout << "Bools: " << std::endl;
+                    std::cout << "Bools: " << '\n';
                     for (auto& [name, value] : bools)
                     {
-                        std::cout << "\t" << name << ": " << value << std::endl;
+                        std::cout << "\t" << name << ": " << value << '\n';
                     }
 
-                    std::cout << "Floats: " << std::endl;
+                    std::cout << "Floats: " << '\n';
                     for (auto& [name, value] : floats)
                     {
-                        std::cout << "\t" << name << ": " << value << std::endl;
+                        std::cout << "\t" << name << ": " << value << '\n';
                     }
 
-                    std::cout << "Integers: " << std::endl;
+                    std::cout << "Integers: " << '\n';
                     for (auto& [name, value] : ints)
                     {
-                        std::cout << "\t" << name << ": " << value << std::endl;
+                        std::cout << "\t" << name << ": " << value << '\n';
                     }
                 }
 
@@ -281,7 +281,7 @@ void DebugService::DrawAnimDebugView()
             ImGui::InputInt("Animation graph index", (int*)&pManager->animationGraphIndex, 0, 0, ImGuiInputTextFlags_ReadOnly);
 
             char name[256];
-            sprintf_s(name, std::size(name), "%s", pGraph->behaviorGraph->stateMachine->name);
+            sprintf_s(name, std::size(name), "%s", pGraph->behaviorGraph->stateMachine->name.data());
             ImGui::InputText("Graph state machine name", name, std::size(name), ImGuiInputTextFlags_ReadOnly);
 
             const auto pVariableSet = pGraph->behaviorGraph->animationVariables;
@@ -308,22 +308,22 @@ void DebugService::DrawAnimDebugView()
                     auto iter = s_values.find(i);
                     if (iter == std::end(s_values))
                     {
-                        s_values[i] = pVariableSet->data[i];
+                        s_values[i] = pVariableSet->data[i].raw;
 
                         const auto varName = s_varMap[i];
 
-                        spdlog::info("Variable k{} ({}) initialized to f: {} i: {}", varName, i, *(float*)&pVariableSet->data[i], *(int32_t*)&pVariableSet->data[i]);
+                        spdlog::info("Variable k{} ({}) initialized to f: {} i: {}", varName, i, pVariableSet->data[i].f, pVariableSet->data[i].i);
                     }
-                    else if (iter->second != pVariableSet->data[i])
+                    else if (iter->second != pVariableSet->data[i].raw)
                     {
                         const auto varName = s_varMap[i];
 
-                        float floatCast = *(float*)&pVariableSet->data[i];
-                        int intCast = *(int32_t*)&pVariableSet->data[i];
-                        spdlog::warn("Variable k{} ({}) changed to f: {} i: {}", varName, i, floatCast, intCast);
+                        float asFloat = pVariableSet->data[i].f;
+                        int asInt = pVariableSet->data[i].i;
+                        spdlog::warn("Variable k{} ({}) changed to f: {} i: {}", varName, i, asFloat, asInt);
 
-                        s_values[i] = pVariableSet->data[i];
-                        s_reusedValues[i] = pVariableSet->data[i];
+                        s_values[i] = pVariableSet->data[i].raw;
+                        s_reusedValues[i] = pVariableSet->data[i].raw;
 
                         char varTypeChar = varName[0]; // for guessing type, to see if u can find type char (i, f, b)
                         if (varTypeChar == 'f')
@@ -336,13 +336,13 @@ void DebugService::DrawAnimDebugView()
                         }
                         else if (varTypeChar != 'b' && s_valueTypes[i] != 1) // no char hint to go off of and not assuming float
                         {
-                            if (intCast > 1000 || intCast < -1000) // arbitrary int threshold
+                            if (asInt > 1000 || asInt < -1000) // arbitrary int threshold
                             {
                                 s_valueTypes[i] = 1; // assume float
                             }
                             else
                             {
-                                if (intCast > 1 || intCast < 0)
+                                if (asInt > 1 || asInt < 0)
                                 {
                                     s_valueTypes[i] = 2; // assume int
                                 }
@@ -356,36 +356,36 @@ void DebugService::DrawAnimDebugView()
             {
                 // kinda ugly to iterate 3 times but idc cuz its just for debugging and its a small collection
                 //  BOOLS
-                std::cout << "{" << std::endl;
+                std::cout << "{" << '\n';
                 for (auto& [key, value] : s_reusedValues)
                 {
                     if (s_valueTypes[key] == 0)
                     {
                         const auto varName = s_varMap[key];
-                        std::cout << "k" << varName << "," << std::endl;
+                        std::cout << "k" << varName << "," << '\n';
                     }
                 }
                 // FLOATS
-                std::cout << "}," << std::endl << "{" << std::endl;
+                std::cout << "}," << '\n' << "{" << '\n';
                 for (auto& [key, value] : s_reusedValues)
                 {
                     if (s_valueTypes[key] == 1)
                     {
                         const auto varName = s_varMap[key];
-                        std::cout << "k" << varName << "," << std::endl;
+                        std::cout << "k" << varName << "," << '\n';
                     }
                 }
                 // INTS
-                std::cout << "}," << std::endl << "{" << std::endl;
+                std::cout << "}," << '\n' << "{" << '\n';
                 for (auto& [key, value] : s_reusedValues)
                 {
                     if (s_valueTypes[key] == 2)
                     {
                         const auto varName = s_varMap[key];
-                        std::cout << "k" << varName << "," << std::endl;
+                        std::cout << "k" << varName << "," << '\n';
                     }
                 }
-                std::cout << "}" << std::endl;
+                std::cout << "}" << '\n';
             }
 
             if (ImGui::Button("Reset recording"))

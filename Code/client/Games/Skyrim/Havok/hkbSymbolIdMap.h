@@ -1,10 +1,10 @@
 #pragma once
 
-struct hkbSymbolIdMap
+struct hkbSymbolIdMap : hkReferencedObject
 {
     virtual ~hkbSymbolIdMap();
 
-    uint8_t pad8[0x20 - 0x8];
+    uint8_t pad8[0x20 - 0x10];
     void* pointer20;
 };
 

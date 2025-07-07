@@ -62,16 +62,16 @@ void hkbBehaviorGraph::ReHandleEvent(hkEventContext& aContext, hkEventType& aTyp
     const auto cbyte20 = pContext->byte20;
     const auto cbyte30 = aContext.byte30;
 
-    const auto counter = struct98->count;
+    const auto counter = activeNodes->count;
     for (auto i = 0; i < counter; ++i)
     {
-        const auto pSomeData = &struct98->data[i];
+        const auto pSomeData = &activeNodes->nodeInfos[i];
         if (!pSomeData->byte84)
         {
             const auto pGraph = pSomeData->behaviorGraph;
             auto pGenerator = pSomeData->generator;
 
-            pContext->symbolIdMap = pGraph->symbolIdMap;
+            pContext->symbolIdMap = pGraph->symbolIdMap.get();
             pContext->byte20 = 1;
 
             auto eventType = aType.type;
@@ -92,7 +92,7 @@ void hkbBehaviorGraph::ReHandleEvent(hkEventContext& aContext, hkEventType& aTyp
 
                 if (pSomeData->byte85 == 0)
                 {
-                    TP_THIS_FUNCTION(Tsub_140A13150, int32_t, hkEventContext, hkbGenerator*, hkEventType&, SomeData*);
+                    TP_THIS_FUNCTION(Tsub_140A13150, int32_t, hkEventContext, hkbGenerator*, hkEventType&, ActiveNodeInfo*);
                     POINTER_SKYRIMSE(Tsub_140A13150, sub_140A13150, 59310);
 
                     TiltedPhoques::ThisCall(sub_140A13150, &aContext, pGenerator, type, pSomeData);
@@ -122,7 +122,7 @@ void hkbBehaviorGraph::ReHandleEvent(hkEventContext& aContext, hkEventType& aTyp
 
         TiltedPhoques::ThisCall(sub_1409F3EF0, this, aContext, type);
     }
-    if (byte12E || g_forceAnimation)
+    if (updateActiveNodes || g_forceAnimation)
     {
         TP_THIS_FUNCTION(Tsub_140A4DFA0, void, hkbBehaviorGraph, hkEventContext&);
         POINTER_SKYRIMSE(Tsub_140A4DFA0, sub_140A4DFA0, 60079);
@@ -157,7 +157,7 @@ hkEventType::hkEventType(int32_t aType)
 
 bool BShkbAnimationGraph::ReSendEvent(BSFixedString* apEventName)
 {
-    if (behaviorGraph && behaviorGraph->byte12C)
+    if (behaviorGraph && behaviorGraph->isActive)
     {
         if (hkxDB->ptr160)
         {
