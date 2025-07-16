@@ -29,6 +29,7 @@ struct BSAnimationGraphManager
 #endif
 
     uint32_t animationGraphIndex; // A8 - 5C
+    uint32_t generateDepth;
 
     SortedMap<uint32_t, String> DumpAnimationVariables(bool aPrintVariables);
     uint64_t GetDescriptorKey(int aForceIndex = -1);
@@ -39,6 +40,7 @@ struct BSAnimationGraphManager
 static_assert(offsetof(BSAnimationGraphManager, animationGraphs) == 0x40);
 static_assert(offsetof(BSAnimationGraphManager, lock) == 0xA0);
 static_assert(offsetof(BSAnimationGraphManager, animationGraphIndex) == 0xB0);
+static_assert(sizeof(BSAnimationGraphManager) == 0xB8);
 #else
 static_assert(offsetof(BSAnimationGraphManager, animationGraphs) == 0x20);
 static_assert(offsetof(BSAnimationGraphManager, lock) == 0x4C);
