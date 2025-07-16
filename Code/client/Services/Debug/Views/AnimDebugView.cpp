@@ -281,8 +281,8 @@ void DebugService::DrawAnimDebugView()
             ImGui::InputInt("Animation graph index", (int*)&pManager->animationGraphIndex, 0, 0, ImGuiInputTextFlags_ReadOnly);
 
             char name[256];
-            sprintf_s(name, std::size(name), "%s", pGraph->behaviorGraph->stateMachine->name.data());
-            ImGui::InputText("Graph state machine name", name, std::size(name), ImGuiInputTextFlags_ReadOnly);
+            sprintf_s(name, std::size(name), "%s", pGraph->behaviorGraph->rootGenerator->name.data());
+            ImGui::InputText("Graph root generator name", name, std::size(name), ImGuiInputTextFlags_ReadOnly);
 
             const auto pVariableSet = pGraph->behaviorGraph->animationVariables;
 

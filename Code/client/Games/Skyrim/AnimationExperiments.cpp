@@ -62,14 +62,14 @@ void hkbBehaviorGraph::ReHandleEvent(hkEventContext& aContext, hkEventType& aTyp
     const auto cbyte20 = pContext->byte20;
     const auto cbyte30 = aContext.byte30;
 
-    const auto counter = activeNodes->count;
+    const auto counter = activeNodeInfos->m_size;
     for (auto i = 0; i < counter; ++i)
     {
-        const auto pSomeData = &activeNodes->nodeInfos[i];
-        if (!pSomeData->byte84)
+        const auto pNodeInfo = &activeNodeInfos->get(i);
+        if (!pNodeInfo->byte84)
         {
-            const auto pGraph = pSomeData->behaviorGraph;
-            auto pGenerator = pSomeData->generator;
+            const auto pGraph = Cast<hkbBehaviorGraph>(pNodeInfo->behavior);
+            auto pNodeClone = pNodeInfo->nodeClone;
 
             pContext->symbolIdMap = pGraph->symbolIdMap.get();
             pContext->byte20 = 1;
@@ -90,16 +90,16 @@ void hkbBehaviorGraph::ReHandleEvent(hkEventContext& aContext, hkEventType& aTyp
                 hkEventType type(eventType);
                 type.behaviorGraph = aType.behaviorGraph;
 
-                if (pSomeData->byte85 == 0)
+                if (auto* pGeneratorClone = Cast<hkbGenerator>(pNodeClone); pGeneratorClone && pNodeInfo->byte85 == 0)
                 {
-                    TP_THIS_FUNCTION(Tsub_140A13150, int32_t, hkEventContext, hkbGenerator*, hkEventType&, ActiveNodeInfo*);
+                    TP_THIS_FUNCTION(Tsub_140A13150, int32_t, hkEventContext, hkbGenerator*, hkEventType&, hkbNodeInfo*);
                     POINTER_SKYRIMSE(Tsub_140A13150, sub_140A13150, 59310);
 
-                    TiltedPhoques::ThisCall(sub_140A13150, &aContext, pGenerator, type, pSomeData);
+                    TiltedPhoques::ThisCall(sub_140A13150, &aContext, pGeneratorClone, type, pNodeInfo);
                 }
                 else
                 {
-                    pGenerator->SendEvent(aContext, type);
+                    pNodeClone->SendEvent(aContext, type);
                 }
             }
         }

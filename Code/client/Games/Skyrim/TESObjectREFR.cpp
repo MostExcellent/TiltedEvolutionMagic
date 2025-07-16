@@ -167,7 +167,7 @@ void TESObjectREFR::SaveAnimationVariables(AnimationVariables& aVariables) const
             if (!pGraph)
                 return;
 
-            if (!pGraph->behaviorGraph || !pGraph->behaviorGraph->stateMachine || pGraph->behaviorGraph->stateMachine->name.empty())
+            if (!pGraph->behaviorGraph || !pGraph->behaviorGraph->rootGenerator || pGraph->behaviorGraph->rootGenerator->name.empty())
                 return;
 
             auto* pExtendedActor = pActor->GetExtension();
@@ -239,7 +239,7 @@ void TESObjectREFR::LoadAnimationVariables(const AnimationVariables& aVariables)
             if (!pGraph)
                 return;
 
-            if (!pGraph->behaviorGraph || !pGraph->behaviorGraph->stateMachine || pGraph->behaviorGraph->stateMachine->name.empty())
+            if (!pGraph->behaviorGraph || !pGraph->behaviorGraph->rootGenerator || pGraph->behaviorGraph->rootGenerator->name.empty())
                 return;
 
             auto* pActor = Cast<Actor>(this);

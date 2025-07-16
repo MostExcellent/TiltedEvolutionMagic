@@ -10,21 +10,30 @@ struct hkbGenerator;
 struct hkbSymbolIdMap;
 struct hkbStateMachine;
 
-// Not 100% sure which structure this is specifically
-struct ActiveNodeInfo
+struct hkbNodeInfo
 {
-    uint8_t pad0[0x58];
-    hkbGenerator* generator;         // 58 - The active generator node
-    hkbBehaviorGraph* behaviorGraph; // 60 - The behavior graph this node belongs to
-    uint8_t pad68[0x84 - 0x68];
-    uint8_t byte84;                     // 84 - Activity flag?
-    uint8_t byte85;                     // 85 - Special processing flag - see AnimationExperiments.cpp
-    uint8_t pad86[0x90 - 0x86];
+    void*    unk00;                     // 00
+    int64_t  unk08;                     // 08
+    int64_t  unk10;                     // 10
+    void*    unk18;                     // 18
+    uint8_t pad20[0x50 - 0x20];
+    hkbNode* nodeTemplate;              // 50
+    hkbNode* nodeClone;                 // 58
+    hkbNode* behavior;                  // 60
+    uint64_t unk68;                     // 68
+    uint64_t unk70;                     // 70
+    uint64_t unk78;                     // 78
+    uint8_t unk80[0x84 - 0x80];         // 80 - 0x80 to 0x88 may be flags + padding?
+    uint8_t byte84;                     // 84 - Some flag, see AnimationExperiments.cpp
+    uint8_t byte85;                     // 85 - Ditto
+    uint8_t pad86[0x88 - 0x86];         // 86 - Check if actually padding?
+    bool unk88;
 };
 
-static_assert(offsetof(ActiveNodeInfo, generator) == 0x58);
-static_assert(offsetof(ActiveNodeInfo, behaviorGraph) == 0x60);
-static_assert(offsetof(ActiveNodeInfo, byte84) == 0x84);
+static_assert(offsetof(hkbNodeInfo, nodeClone) == 0x58);
+static_assert(offsetof(hkbNodeInfo, behavior) == 0x60);
+static_assert(offsetof(hkbNodeInfo, byte84) == 0x84);
+static_assert(sizeof(hkbNodeInfo) == 0x90);
 
 struct hkbBehaviorGraph : hkbGenerator
 {
@@ -54,14 +63,7 @@ struct hkbBehaviorGraph : hkbGenerator
     void ReSendEvent(hkEventContext& aContext, hkEventType& aType);
     void ReHandleEvent(hkEventContext& aContext, hkEventType& aType);
 
-    // TODO: Check if hkArray or simple array
-    struct ActiveNodeInfoArray
-    {
-        ActiveNodeInfo* nodeInfos;  // Array of active node information
-        int count;              // Number of active nodes
-    };
-
-    VariableMode                   variableMode;                     // 48
+    VariableMode                   variableMode;                     // 048
     uint8_t                        pad49;                            // 049
     uint16_t                       pad4A;                            // 04A
     uint32_t                       pad4C;                            // 04C
@@ -69,11 +71,10 @@ struct hkbBehaviorGraph : hkbGenerator
     hkRefVariant                   idToStateMachineTemplateMap;      // 060
     hkArray<hkRefVariant>          mirroredExternalIDMap;            // 068
     hkRefVariant                   pseudoRandomGenerator;            // 078
-    // TODO: Check if state machine or regular generator
-    hkRefPtr<hkbStateMachine>      stateMachine;                     // 80
+    hkRefPtr<hkbGenerator>         rootGenerator;                    // 080
     hkRefPtr<hkbBehaviorGraphData> data;                             // 088
     hkRefVariant                   rootGeneratorClone;               // 090
-    ActiveNodeInfoArray*               activeNodes;                      // 98 - Currently active nodes in the graph
+    hkArray<hkbNodeInfo>*          activeNodeInfos;                  // 098
     hkRefVariant                   activeNodeTemplateToIndexMap;     // 0A0
     hkRefVariant                   activeNodesChildrenIndices;       // 0A8
     hkRefVariant                   globalTransitionData;             // 0B0
@@ -81,7 +82,7 @@ struct hkbBehaviorGraph : hkbGenerator
     hkRefVariant                   attributeIDMap;                   // 0C0
     hkRefVariant                   variableIDMap;                    // 0C8
     hkRefVariant                   characterPropertyIDMap;           // 0D0
-    hkbVariableValueSet*           animationVariables;               // D8
+    hkbVariableValueSet*           animationVariables;               // 0D8
     hkRefVariant                   nodeTemplateToCloneMap;           // 0E0
     hkRefVariant                   nodeCloneToTemplateMap;           // 0E8
     hkRefVariant                   stateListenerTemplateToCloneMap;  // 0F0
@@ -98,7 +99,7 @@ struct hkbBehaviorGraph : hkbGenerator
     bool                           stateOrTransitionChanged;         // 12F
 };
 static_assert(sizeof(hkbBehaviorGraph) == 0x130);
-static_assert(offsetof(hkbBehaviorGraph, activeNodes) == 0x98);
+static_assert(offsetof(hkbBehaviorGraph, activeNodeInfos) == 0x98);
 static_assert(offsetof(hkbBehaviorGraph, symbolIdMap) == 0xB8);
 static_assert(offsetof(hkbBehaviorGraph, animationVariables) == 0xD8);
 static_assert(offsetof(hkbBehaviorGraph, isActive) == 0x12C);
