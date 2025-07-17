@@ -19,6 +19,7 @@ struct hkbNodeInfo
     uint8_t pad20[0x50 - 0x20];
     hkbNode* nodeTemplate;              // 50
     hkbNode* nodeClone;                 // 58
+    // TODO: Check if this is a behavior graph
     hkbNode* behavior;                  // 60
     uint64_t unk68;                     // 68
     uint64_t unk70;                     // 70
@@ -71,7 +72,8 @@ struct hkbBehaviorGraph : hkbGenerator
     hkRefVariant                   idToStateMachineTemplateMap;      // 060
     hkArray<hkRefVariant>          mirroredExternalIDMap;            // 068
     hkRefVariant                   pseudoRandomGenerator;            // 078
-    hkRefPtr<hkbGenerator>         rootGenerator;                    // 080
+    // TODO: Could this ever not be a state machine?
+    hkRefPtr<hkbStateMachine>      rootStateMachine;                 // 080
     hkRefPtr<hkbBehaviorGraphData> data;                             // 088
     hkRefVariant                   rootGeneratorClone;               // 090
     hkArray<hkbNodeInfo>*          activeNodeInfos;                  // 098
