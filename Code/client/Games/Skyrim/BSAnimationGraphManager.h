@@ -22,7 +22,7 @@ struct BSAnimationGraphManager
     BSTSmallArray<BShkbAnimationGraph> animationGraphs; // 40 - 20
     void* pad_ptrs2[9];
     BSRecursiveLock lock;  // 98 - 4C
-    void* unkPtrAfterLock; // A0 - 58
+    BSRecursiveLock dependentManagerLock; // A0 - 58
 
 #if TP_PLATFORM_32
     void* unkPtrOldrim;
