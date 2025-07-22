@@ -8,7 +8,7 @@ template <class T> struct ScopedOverride
 
     TP_NOCOPYMOVE(ScopedOverride);
 
-    static bool IsOverriden() { return s_refCount > 0; }
+    static bool IsOverriden() noexcept { return s_refCount > 0; }
 
 private:
     static thread_local uint32_t s_refCount;
