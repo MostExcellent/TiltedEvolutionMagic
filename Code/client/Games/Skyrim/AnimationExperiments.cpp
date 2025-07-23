@@ -407,7 +407,7 @@ bool TESActionData::ComputeResult()
     POINTER_SKYRIMSE(Tsub_1401A1D50, sub_1401A1D50, 15006);
 
     result = 0;
-    if (targetIdleForm)
+    if (sequence)
     {
         if (!_strnicmp(eventName, "NA_", 3))
         {
