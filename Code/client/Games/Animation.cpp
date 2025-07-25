@@ -46,6 +46,7 @@ static uint8_t TP_MAKE_THISCALL(HookPerformAction, ActorMediator, TESActionData*
         if (pActor)
         {
             BSScopedLock actorLock(pActor->actorLock);
+            Event.ActorId = pActor->formID;
             Event.State1 = pActor->actorState.flags1;
             Event.State2 = pActor->actorState.flags2;
             pActor->SaveAnimationVariables(Event.Variables);
@@ -53,7 +54,7 @@ static uint8_t TP_MAKE_THISCALL(HookPerformAction, ActorMediator, TESActionData*
         
         Event.Type = apAction->unkInput | (apAction->someFlag ? 0x4 : 0);
         Event.Tick = World::Get().GetTick();
-        Event.ActorId = pActor->formID;
+        assert(apAction->action);
         Event.ActionId = apAction->action->formID;
         Event.TargetId = apAction->target ? apAction->target->formID : 0;
 
@@ -73,12 +74,15 @@ static uint8_t TP_MAKE_THISCALL(HookPerformAction, ActorMediator, TESActionData*
             Event.SequenceIndex = apAction->sequenceIndex;
             
             // Useful even for remote actors for potential ownership transfer edge cases
-            pExtension->LatestAnimation = Event;
+            if (pExtension)
+            {
+                pExtension->LatestAnimation = Event;
 
-            // Weapon equip
-            // TODO: Investigate the interaction between action process rework and weapon draw special-case
-            if(apAction->action->formID == 0x132AF)
-                pExtension->LatestWeapEquipAnimation = Event;
+                // Weapon equip
+                // TODO: Investigate the interaction between action process rework and weapon draw special-case
+                if(apAction->action->formID == 0x132AF)
+                    pExtension->LatestWeapEquipAnimation = Event;
+            }
 
             // TODO: should we send actions from the game where res == 0, as before?
             if (bDoNetworkSend)
@@ -89,6 +93,7 @@ static uint8_t TP_MAKE_THISCALL(HookPerformAction, ActorMediator, TESActionData*
     }
     
     // Recursive calls should always be allowed but NOT create action events
+    // For now, we're simply blocking initial entry from the game
     return bIsInitialEntry ? 0 : TiltedPhoques::ThisCall(RealPerformAction, apThis, apAction);
 }
 
@@ -104,6 +109,7 @@ bool ActorMediator::PerformAction(TESActionData* apAction) noexcept
     return HookPerformAction(this, apAction);
 }
 
+// TODO: Deprecate this?
 bool ActorMediator::ForceAction(TESActionData* apAction) noexcept
 {
     TP_THIS_FUNCTION(TAnimationStep, uint8_t, ActorMediator, TESActionData*);
@@ -114,6 +120,7 @@ bool ActorMediator::ForceAction(TESActionData* apAction) noexcept
     // ApplyAnimationVariables should not be necessary
     // HookPerformAction allows the recursive calls that do this
     // Haven't deleted it entirely
+    // Commented out to have ID for reference
     // POINTER_SKYRIMSE(TApplyAnimationVariables, ApplyAnimationVariables, 39004);
     // POINTER_SKYRIMSE(void*, qword_142F271B8, 403566);
 
