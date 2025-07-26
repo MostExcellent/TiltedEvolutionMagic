@@ -560,6 +560,9 @@ void CharacterService::OnReferencesMoveRequest(const ServerReferencesMoveRequest
 
 void CharacterService::OnActionEvent(const ActionEvent& acActionEvent) const noexcept
 {
+    if (acActionEvent.ActionId == 0)
+        spdlog::error("Action with event name {} has no action form!", acActionEvent.EventName);
+    
     auto view = m_world.view<LocalAnimationComponent, FormIdComponent>();
 
     // TODO: if target is regularly an actor, find both in one go?
