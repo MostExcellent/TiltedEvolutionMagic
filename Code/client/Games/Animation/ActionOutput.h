@@ -10,8 +10,6 @@ struct ActionOutput
     ~ActionOutput() { Release(); }
 
     void Release();
-
-    // TODO: Do we need to serialize ActionOutput at all?
     
     BSFixedString eventName;       // 00 - 28
     BSFixedString targetEventName; // 08 - 30
