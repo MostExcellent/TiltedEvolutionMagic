@@ -3,6 +3,7 @@
 #include <Actor.h>
 
 struct BGSAction;
+struct BGSAnimationSequencer;
 
 struct ActionInput
 {
@@ -12,8 +13,7 @@ struct ActionInput
 
     virtual ActorState* GetSourceActorState() const { return nullptr; } // 01
     virtual void sub_2() {} // 02
-    // TODO: Add BGSAnimationSequencer RE
-    virtual void* GetSourceSequencer() const { return nullptr; } // 03 returns BGSAnimationSequencer*
+    virtual BGSAnimationSequencer* GetSourceSequencer() const { return nullptr; } // 03
 
     void Release();
 
