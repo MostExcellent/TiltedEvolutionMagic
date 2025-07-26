@@ -5,6 +5,9 @@
 struct World;
 struct Actor;
 struct ClientReferencesMoveRequest;
+struct ActionEvent;
+struct NetActionEvent;
+struct ModSystem;
 
 /**
  * @brief Applies animations coming from remote actors.
@@ -18,7 +21,8 @@ struct AnimationSystem
      * @param aAnimationComponent The animation component attached to the actor.
      * @param aTick The current tick.
      */
-    static void Update(World& aWorld, Actor* apActor, RemoteAnimationComponent& aAnimationComponent, uint64_t aTick) noexcept;
+    static void Update(World& aWorld, Actor* apActor, RemoteAnimationComponent& aAnimationComponent,
+                       uint64_t aTick) noexcept;
     /**
      * @brief Sets up the animation system for a particular actor.
      * @param aWorld The registry where the actor in question lives.
@@ -48,11 +52,29 @@ struct AnimationSystem
      * @param animationComponent The local animation component of the actor, used to give the output the server id of the actor.
      * @param formIdComponent The form id component of the actor, used to fetch the actor pointer.
      */
-    static void Serialize(World& aWorld, ClientReferencesMoveRequest& aMovementSnapshot, LocalComponent& localComponent, LocalAnimationComponent& animationComponent, FormIdComponent& formIdComponent);
+    static void Serialize(World& aWorld, ClientReferencesMoveRequest& aMovementSnapshot, LocalComponent& localComponent,
+                          LocalAnimationComponent& animationComponent, FormIdComponent& formIdComponent);
     /**
      * @brief Serializes the actions to-be-sent.
      *
      * This function is not being used.
      */
-    static bool Serialize(World& aWorld, const ActionEvent& aActionEvent, const ActionEvent& aLastProcessedAction, std::string* apData);
+    [[maybe_unused]] static bool Serialize(World& aWorld, const ActionEvent& aActionEvent,
+                                           const ActionEvent& aLastProcessedAction, std::string* apData);
+
+    /**
+     * @brief Convert a local ActionEvent to a NetActionEvent for network transmission
+     * @param aActionEvent The local ActionEvent with FormIDs
+     * @param aWorld World instance for entity lookup
+     * @return NetActionEvent ready for network transmission
+     */
+    static NetActionEvent ToNetActionEvent(const ActionEvent& aActionEvent, World& aWorld) noexcept;
+
+    /**
+     * @brief Convert a received NetActionEvent to a local ActionEvent
+     * @param aNetActionEvent The network ActionEvent with entity handles and GameIds
+     * @param aWorld World instance for entity to FormID conversion
+     * @return ActionEvent ready for local use
+     */
+    static ActionEvent ToActionEvent(const NetActionEvent& aNetActionEvent, World& aWorld) noexcept;
 };

@@ -2,13 +2,13 @@
 
 #include <Systems/AnimationSystem.h>
 
-#include <Games/Animation/TESActionData.h>
 #include <Games/Animation/ActorMediator.h>
+#include <Games/Animation/TESActionData.h>
 
 #include <Games/References.h>
 
-#include <Forms/BGSAction.h>
 #include <AI/AIProcess.h>
+#include <Forms/BGSAction.h>
 #include <Misc/MiddleProcess.h>
 
 #include <Messages/ClientReferencesMoveRequest.h>
@@ -18,6 +18,11 @@
 
 #include <Forms/TESObjectCELL.h>
 #include <Forms/TESWorldSpace.h>
+
+#include <Structs/ActionEvent.h>
+#include <Structs/GameId.h>
+#include <Structs/NetActionEvent.h>
+#include <Systems/ModSystem.h>
 
 extern thread_local const char* g_animErrorCode;
 
@@ -58,7 +63,7 @@ void AnimationSystem::Update(World& aWorld, Actor* apActor, RemoteAnimationCompo
 
         // Corresponds to unkInput
         uint32_t unkInput = it->Type & 0x3;
-        
+
         // Play the animation
         TESActionData actionData(unkInput, apActor, pAction, pTarget);
         actionData.eventName = BSFixedString(it->EventName.c_str());
@@ -74,7 +79,7 @@ void AnimationSystem::Update(World& aWorld, Actor* apActor, RemoteAnimationCompo
         // With more RE, we could maybe perform actions through an even higher level system?
         // Add to sequencer, do stuff, etc.
         const auto result = ActorMediator::Get()->PerformAction(&actionData);
-        
+
         if (result)
             spdlog::info("Action {} processed with result: {}", it->EventName, result);
         else
@@ -110,7 +115,9 @@ void AnimationSystem::AddAction(RemoteAnimationComponent& aAnimationComponent, c
     aAnimationComponent.TimePoints.push_back(lastProcessedAction);
 }
 
-void AnimationSystem::Serialize(World& aWorld, ClientReferencesMoveRequest& aMovementSnapshot, LocalComponent& localComponent, LocalAnimationComponent& animationComponent, FormIdComponent& formIdComponent)
+void AnimationSystem::Serialize(World& aWorld, ClientReferencesMoveRequest& aMovementSnapshot,
+                                LocalComponent& localComponent, LocalAnimationComponent& animationComponent,
+                                FormIdComponent& formIdComponent)
 {
     const auto pForm = TESForm::GetById(formIdComponent.Id);
     const auto pActor = Cast<Actor>(pForm);
@@ -124,7 +131,8 @@ void AnimationSystem::Serialize(World& aWorld, ClientReferencesMoveRequest& aMov
         World::Get().GetModSystem().GetServerModId(pCell->formID, movement.CellId.ModId, movement.CellId.BaseId);
 
     if (const auto pWorldSpace = pActor->GetWorldSpace())
-        World::Get().GetModSystem().GetServerModId(pWorldSpace->formID, movement.WorldSpaceId.ModId, movement.WorldSpaceId.BaseId);
+        World::Get().GetModSystem().GetServerModId(pWorldSpace->formID, movement.WorldSpaceId.ModId,
+                                                   movement.WorldSpaceId.BaseId);
 
     movement.Position = pActor->position;
 
@@ -140,7 +148,7 @@ void AnimationSystem::Serialize(World& aWorld, ClientReferencesMoveRequest& aMov
 
     for (auto& entry : animationComponent.Actions)
     {
-        update.ActionEvents.push_back(entry);
+        update.ActionEvents.emplace_back(ToNetActionEvent(entry, aWorld));
     }
 
     auto latestAction = animationComponent.GetLatestAction();
@@ -151,7 +159,8 @@ void AnimationSystem::Serialize(World& aWorld, ClientReferencesMoveRequest& aMov
     animationComponent.Actions.clear();
 }
 
-bool AnimationSystem::Serialize(World& aWorld, const ActionEvent& aActionEvent, const ActionEvent& aLastProcessedAction, std::string* apData)
+bool AnimationSystem::Serialize(World& aWorld, const ActionEvent& aActionEvent, const ActionEvent& aLastProcessedAction,
+                                std::string* apData)
 {
     uint32_t actionBaseId = 0;
     uint32_t actionModId = 0;
@@ -171,4 +180,199 @@ bool AnimationSystem::Serialize(World& aWorld, const ActionEvent& aActionEvent, 
     apData->assign(buffer.GetData(), buffer.GetData() + writer.Size());
 
     return true;
+}
+
+NetActionEvent AnimationSystem::ToNetActionEvent(const ActionEvent& aActionEvent, World& aWorld) noexcept
+{
+    NetActionEvent netEvent{};
+
+    // Copy basic data
+    netEvent.Tick = aActionEvent.Tick;
+    netEvent.State1 = aActionEvent.State1;
+    netEvent.State2 = aActionEvent.State2;
+    netEvent.Type = aActionEvent.Type;
+    netEvent.SequenceIndex = aActionEvent.SequenceIndex;
+    netEvent.EventName = aActionEvent.EventName;
+    netEvent.TargetEventName = aActionEvent.TargetEventName;
+    netEvent.Variables = aActionEvent.Variables;
+
+    // Convert Actor FormID to entity handle
+    if (aActionEvent.ActorId != 0)
+    {
+        auto view = aWorld.view<FormIdComponent, LocalComponent>();
+        for (entt::entity entity : view)
+        {
+            const auto& formIdComponent = view.get<FormIdComponent>(entity);
+            if (formIdComponent.Id == aActionEvent.ActorId)
+            {
+                const auto& localComponent = view.get<LocalComponent>(entity);
+                netEvent.ActorId = localComponent.Id;
+                break;
+            }
+        }
+    }
+
+    // Convert Target FormID - check if it's an entity or world object
+    if (aActionEvent.TargetId != 0)
+    {
+        bool isEntity = false;
+        auto view = aWorld.view<FormIdComponent>();
+        for (entt::entity entity : view)
+        {
+            const auto& formIdComponent = view.get<FormIdComponent>(entity);
+            if (formIdComponent.Id == aActionEvent.TargetId)
+            {
+                // Target is an entity, get its handle
+                if (auto* localComponent = aWorld.try_get<LocalComponent>(entity))
+                {
+                    netEvent.TargetId = localComponent->Id;
+                    isEntity = true;
+                    break;
+                }
+                else if (auto* remoteComponent = aWorld.try_get<RemoteComponent>(entity))
+                {
+                    netEvent.TargetId = remoteComponent->Id;
+                    isEntity = true;
+                    break;
+                }
+            }
+        }
+
+        if (!isEntity)
+        {
+            // Target is a world object, convert to GameId
+            uint32_t baseId = 0;
+            uint32_t modId = 0;
+            if (aWorld.GetModSystem().GetServerModId(aActionEvent.TargetId, modId, baseId))
+            {
+                netEvent.TargetGameId = GameId(modId, baseId);
+            }
+        }
+    }
+
+    // Convert Form IDs to GameIds
+    if (aActionEvent.ActionId != 0)
+    {
+        uint32_t baseId = 0;
+        uint32_t modId = 0;
+        if (aWorld.GetModSystem().GetServerModId(aActionEvent.ActionId, modId, baseId))
+        {
+            netEvent.ActionId = GameId(modId, baseId);
+        }
+    }
+
+    if (aActionEvent.SequenceId != 0)
+    {
+        uint32_t baseId = 0;
+        uint32_t modId = 0;
+        if (aWorld.GetModSystem().GetServerModId(aActionEvent.SequenceId, modId, baseId))
+        {
+            netEvent.SequenceId = GameId(modId, baseId);
+        }
+    }
+
+    if (aActionEvent.IdleId != 0)
+    {
+        uint32_t baseId = 0;
+        uint32_t modId = 0;
+        if (aWorld.GetModSystem().GetServerModId(aActionEvent.IdleId, modId, baseId))
+        {
+            netEvent.IdleId = GameId(modId, baseId);
+        }
+    }
+
+    return netEvent;
+}
+
+ActionEvent AnimationSystem::ToActionEvent(const NetActionEvent& aNetActionEvent, World& aWorld) noexcept
+{
+    ActionEvent event{};
+
+    // Copy basic data
+    event.Tick = aNetActionEvent.Tick;
+    event.State1 = aNetActionEvent.State1;
+    event.State2 = aNetActionEvent.State2;
+    event.Type = aNetActionEvent.Type;
+    event.SequenceIndex = aNetActionEvent.SequenceIndex;
+    event.EventName = aNetActionEvent.EventName;
+    event.TargetEventName = aNetActionEvent.TargetEventName;
+    event.Variables = aNetActionEvent.Variables;
+
+    // Convert Actor entity handle to FormID
+    if (aNetActionEvent.ActorId != 0)
+    {
+        auto view = aWorld.view<FormIdComponent>();
+        for (entt::entity entity : view)
+        {
+            if (auto* localComponent = aWorld.try_get<LocalComponent>(entity))
+            {
+                if (localComponent->Id == aNetActionEvent.ActorId)
+                {
+                    const auto& formIdComponent = view.get<FormIdComponent>(entity);
+                    event.ActorId = formIdComponent.Id;
+                    break;
+                }
+            }
+            else if (auto* remoteComponent = aWorld.try_get<RemoteComponent>(entity))
+            {
+                if (remoteComponent->Id == aNetActionEvent.ActorId)
+                {
+                    const auto& formIdComponent = view.get<FormIdComponent>(entity);
+                    event.ActorId = formIdComponent.Id;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Convert Target - check if entity handle or GameId
+    if (aNetActionEvent.TargetId != 0)
+    {
+        // Target is an entity, find its FormID
+        auto view = aWorld.view<FormIdComponent>();
+        for (entt::entity entity : view)
+        {
+            if (auto* localComponent = aWorld.try_get<LocalComponent>(entity))
+            {
+                if (localComponent->Id == aNetActionEvent.TargetId)
+                {
+                    const auto& formIdComponent = view.get<FormIdComponent>(entity);
+                    event.TargetId = formIdComponent.Id;
+                    break;
+                }
+            }
+            else if (auto* remoteComponent = aWorld.try_get<RemoteComponent>(entity))
+            {
+                if (remoteComponent->Id == aNetActionEvent.TargetId)
+                {
+                    const auto& formIdComponent = view.get<FormIdComponent>(entity);
+                    event.TargetId = formIdComponent.Id;
+                    break;
+                }
+            }
+        }
+    }
+    else if (aNetActionEvent.TargetGameId)
+    {
+        // Target is a world object, convert GameId to FormID
+        event.TargetId = aWorld.GetModSystem().GetGameId(aNetActionEvent.TargetGameId);
+    }
+
+    // Convert GameIds to Form IDs
+    if (aNetActionEvent.ActionId)
+    {
+        event.ActionId = aWorld.GetModSystem().GetGameId(aNetActionEvent.ActionId);
+    }
+
+    if (aNetActionEvent.SequenceId)
+    {
+        event.SequenceId = aWorld.GetModSystem().GetGameId(aNetActionEvent.SequenceId);
+    }
+
+    if (aNetActionEvent.IdleId)
+    {
+        event.IdleId = aWorld.GetModSystem().GetGameId(aNetActionEvent.IdleId);
+    }
+
+    return event;
 }

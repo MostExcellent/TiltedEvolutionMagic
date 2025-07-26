@@ -16,6 +16,8 @@
 #include <Messages/ClientMessageFactory.h>
 #include <Messages/ServerMessageFactory.h>
 #include <Structs/Vector2_NetQuantize.h>
+#include <Structs/NetActionEvent.h>
+#include <Structs/GameId.h>
 
 #include <TiltedCore/Math.hpp>
 #include <TiltedCore/Platform.hpp>
@@ -167,16 +169,16 @@ TEST_CASE("Static structures", "[encoding.static]")
 
 TEST_CASE("Differential structures", "[encoding.differential]")
 {
-    GIVEN("Full ActionEvent")
+    GIVEN("Full NetActionEvent")
     {
-        ActionEvent sendAction, recvAction;
+        NetActionEvent sendAction, recvAction;
 
-        sendAction.ActionId = 42;
+        sendAction.ActionId = GameId(1, 42);
         sendAction.State1 = 6547;
         sendAction.Tick = 48;
         sendAction.ActorId = 12345678;
         sendAction.EventName = "test";
-        sendAction.IdleId = 87964;
+        sendAction.IdleId = GameId(2, 87964);
         sendAction.State2 = 8963;
         sendAction.TargetEventName = "toast";
         sendAction.TargetId = 963741;
@@ -211,16 +213,16 @@ TEST_CASE("Differential structures", "[encoding.differential]")
 
     GIVEN("A single cached event name")
     {
-        ActionEvent sendAction, recvAction;
+        NetActionEvent sendAction, recvAction;
 
         TP_UNUSED(StringCache::Get().Add("test"))
 
-        sendAction.ActionId = 42;
+        sendAction.ActionId = GameId(1, 42);
         sendAction.State1 = 6547;
         sendAction.Tick = 48;
         sendAction.ActorId = 12345678;
         sendAction.EventName = "test";
-        sendAction.IdleId = 87964;
+        sendAction.IdleId = GameId(2, 87964);
         sendAction.State2 = 8963;
         sendAction.TargetEventName = "toast";
         sendAction.TargetId = 963741;
@@ -276,10 +278,10 @@ TEST_CASE("Differential structures", "[encoding.differential]")
     GIVEN("AnimationVariables")
     {
         AnimationVariables vars, recvVars;
- 
+
         vars.Booleans.resize(76);
         String testString("\xDE\xAD\xBE\xEF"
-                          "\xDE\xAD\xBE\xEF\x76\xB");
+            "\xDE\xAD\xBE\xEF\x76\xB");
         vars.String_to_VectorBool(testString, vars.Booleans);
 
         vars.Floats.push_back(1.f);
@@ -407,13 +409,13 @@ TEST_CASE("Packets", "[encoding.packets]")
     {
         Buffer buff(1000);
 
-        ActionEvent sendAction;
-        sendAction.ActionId = 42;
+        NetActionEvent sendAction;
+        sendAction.ActionId = GameId(1, 42);
         sendAction.State1 = 6547;
         sendAction.Tick = 48;
         sendAction.ActorId = 12345678;
         sendAction.EventName = "test";
-        sendAction.IdleId = 87964;
+        sendAction.IdleId = GameId(2, 87964);
         sendAction.State2 = 8963;
         sendAction.TargetEventName = "toast";
         sendAction.TargetId = 963741;

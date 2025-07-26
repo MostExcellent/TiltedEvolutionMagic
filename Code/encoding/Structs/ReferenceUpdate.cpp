@@ -1,6 +1,5 @@
 #include <Structs/ReferenceUpdate.h>
 #include <TiltedCore/Serialization.hpp>
-#include <stdexcept>
 
 using TiltedPhoques::Serialization;
 
@@ -20,9 +19,12 @@ void ReferenceUpdate::Serialize(TiltedPhoques::Buffer::Writer& aWriter) const no
 
     Serialization::WriteVarInt(aWriter, ActionEvents.size());
 
-    for (auto& entry : ActionEvents)
+    static const NetActionEvent defaultEvent{};
+    const NetActionEvent* previous = nullptr;
+    for (const auto& entry : ActionEvents)
     {
-        entry.GenerateDifferential(ActionEvent{}, aWriter);
+        entry.GenerateDifferential(previous ? *previous : defaultEvent, aWriter);
+        previous = &entry;
     }
 }
 

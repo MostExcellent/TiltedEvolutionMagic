@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Structs/Movement.h>
-#include <Structs/ActionEvent.h>
+#include <Structs/NetActionEvent.h>
 
 using TiltedPhoques::Buffer;
 using TiltedPhoques::Vector;
@@ -18,5 +18,5 @@ struct ReferenceUpdate
     void Deserialize(TiltedPhoques::Buffer::Reader& aReader);
 
     Movement UpdatedMovement{};
-    Vector<ActionEvent> ActionEvents{};
+    Vector<NetActionEvent> ActionEvents{};
 };

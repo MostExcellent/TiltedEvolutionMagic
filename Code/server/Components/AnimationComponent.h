@@ -4,11 +4,11 @@
 #error Include Components.h instead
 #endif
 
-#include <Structs/ActionEvent.h>
+#include <Structs/NetActionEvent.h>
 
 struct AnimationComponent
 {
-    Vector<ActionEvent> Actions;
-    ActionEvent CurrentAction;
-    ActionEvent LastSerializedAction;
+    Vector<NetActionEvent> Actions;
+    NetActionEvent CurrentAction;
+    NetActionEvent LastSerializedAction;
 };

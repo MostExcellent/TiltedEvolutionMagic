@@ -3,7 +3,7 @@
 #include "Message.h"
 #include <Structs/GameId.h>
 #include <Structs/GridCellCoords.h>
-#include <Structs/ActionEvent.h>
+#include <Structs/NetActionEvent.h>
 #include <Structs/Vector3_NetQuantize.h>
 #include <Structs/Rotator2_NetQuantize.h>
 #include <Structs/Tints.h>
@@ -29,8 +29,12 @@ struct AssignCharacterRequest final : ClientMessage
 
     bool operator==(const AssignCharacterRequest& acRhs) const noexcept
     {
-        return GetOpcode() == acRhs.GetOpcode() && Cookie == acRhs.Cookie && ReferenceId == acRhs.ReferenceId && FormId == acRhs.FormId && CellId == acRhs.CellId && WorldSpaceId == acRhs.WorldSpaceId && Position == acRhs.Position && Rotation == acRhs.Rotation && ChangeFlags == acRhs.ChangeFlags &&
-               AppearanceBuffer == acRhs.AppearanceBuffer && FactionsContent == acRhs.FactionsContent && LatestAction == acRhs.LatestAction && FaceTints == acRhs.FaceTints && QuestContent == acRhs.QuestContent && IsDragon == acRhs.IsDragon && IsMount == acRhs.IsMount && IsPlayerSummon == acRhs.IsPlayerSummon;
+        return GetOpcode() == acRhs.GetOpcode() && Cookie == acRhs.Cookie && ReferenceId == acRhs.ReferenceId && FormId
+               == acRhs.FormId && CellId == acRhs.CellId && WorldSpaceId == acRhs.WorldSpaceId && Position == acRhs.
+               Position && Rotation == acRhs.Rotation && ChangeFlags == acRhs.ChangeFlags &&
+               AppearanceBuffer == acRhs.AppearanceBuffer && FactionsContent == acRhs.FactionsContent && LatestAction ==
+               acRhs.LatestAction && FaceTints == acRhs.FaceTints && QuestContent == acRhs.QuestContent && IsDragon ==
+               acRhs.IsDragon && IsMount == acRhs.IsMount && IsPlayerSummon == acRhs.IsPlayerSummon;
     }
 
     uint32_t Cookie{};
@@ -43,7 +47,7 @@ struct AssignCharacterRequest final : ClientMessage
     uint32_t ChangeFlags{};
     String AppearanceBuffer{};
     Factions FactionsContent{};
-    ActionEvent LatestAction{};
+    NetActionEvent LatestAction{};
     QuestLog QuestContent{};
     Tints FaceTints{};
     bool IsDragon{};
