@@ -865,8 +865,6 @@ bool Actor::IsVampireLord() const noexcept
     return race && race->formID == 0x200283A;
 }
 
-#include <Games/Overrides.h>
-
 void Actor::FixVampireLordModel() noexcept
 {
     TESBoundObject* pObject = Cast<TESBoundObject>(TESForm::GetById(0x2011a84));
