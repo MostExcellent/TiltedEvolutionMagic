@@ -34,10 +34,17 @@ void ReferenceUpdate::Deserialize(TiltedPhoques::Buffer::Reader& aReader)
 
     const auto count = Serialization::ReadVarInt(aReader);
 
-    ActionEvents.resize(count);
+    ActionEvents.clear();
+    ActionEvents.reserve(count);
 
+    static const NetActionEvent defaultEvent{};
+    const NetActionEvent* previous = nullptr;
+    
     for (auto i = 0u; i < count; ++i)
     {
-        ActionEvents[i].ApplyDifferential(aReader);
+        NetActionEvent event = previous ? *previous : defaultEvent;
+        event.ApplyDifferential(aReader);
+        ActionEvents.push_back(event);
+        previous = &ActionEvents.back();
     }
 }
