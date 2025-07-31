@@ -41,7 +41,6 @@ void AnimationSystem::Update(World& aWorld, Actor* apActor, RemoteAnimationCompo
         const auto pAction = Cast<BGSAction>(TESForm::GetById(it->ActionId));
         const auto pTarget = Cast<TESObjectREFR>(TESForm::GetById(it->TargetId));
         {
-            BSScopedLock lock{apActor->actorLock};
             // Load actor state flags (primarily movement state)
             apActor->actorState.flags1 = it->State1;
             apActor->actorState.flags2 = it->State2;
