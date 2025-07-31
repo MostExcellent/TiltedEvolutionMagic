@@ -76,7 +76,7 @@ static uint8_t TP_MAKE_THISCALL(HookPerformAction, ActorMediator, TESActionData*
                 pExtension->LatestAnimation = Event;
 
                 // Weapon equip special-case
-                if(apAction->action->formID == 0x132AF)
+                if(apAction->action && apAction->action->formID == 0x132AF)
                     pExtension->LatestWeapEquipAnimation = Event;
             }
 
