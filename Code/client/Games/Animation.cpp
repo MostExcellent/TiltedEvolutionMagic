@@ -43,7 +43,6 @@ static uint8_t TP_MAKE_THISCALL(HookPerformAction, ActorMediator, TESActionData*
 
         if (pActor)
         {
-            BSScopedLock actorLock(pActor->actorLock);
             Event.ActorId = pActor->formID;
             Event.State1 = pActor->actorState.flags1;
             Event.State2 = pActor->actorState.flags2;
