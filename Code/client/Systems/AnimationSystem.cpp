@@ -40,16 +40,15 @@ void AnimationSystem::Update(World& aWorld, Actor* apActor, RemoteAnimationCompo
 
         const auto pAction = Cast<BGSAction>(TESForm::GetById(it->ActionId));
         const auto pTarget = Cast<TESObjectREFR>(TESForm::GetById(it->TargetId));
-        {
-            // Load actor state flags (primarily movement state)
-            apActor->actorState.flags1 = it->State1;
-            apActor->actorState.flags2 = it->State2;
+        
+        // Load actor state flags (primarily movement state)
+        apActor->actorState.flags1 = it->State1;
+        apActor->actorState.flags2 = it->State2;
 
-            // Action system functions without this in most if not all vanilla cases
-            // Maybe there was originally a reason why?
-            // Mod compatibility may depend on this now, though
-            apActor->LoadAnimationVariables(it->Variables);
-        }
+        // Action system functions without this in most if not all vanilla cases
+        // Maybe there was originally a reason why?
+        // Mod compatibility may depend on this now, though
+        apActor->LoadAnimationVariables(it->Variables);
 
         // TODO: copy after the end of batch processing,
         //       if multiple actions are processed?
