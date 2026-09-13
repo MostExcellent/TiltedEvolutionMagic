@@ -13,6 +13,9 @@ if is_plat("windows") then
     add_syslinks("kernel32")
     set_arch("x64")
     set_runtimes("MT")
+    set_config("toolchain", "msvc")
+    set_config("vs", "2022")
+    set_toolchains("msvc", {vs = "2022"})
 end
 
 if is_plat("linux") then
