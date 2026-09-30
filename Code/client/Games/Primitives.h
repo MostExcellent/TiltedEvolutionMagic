@@ -331,9 +331,8 @@ template <class T> struct GamePtr
     }
 
     GamePtr(GamePtr<T>&& aRhs) noexcept
-        : m_pPointer(nullptr)
     {
-        std::swap(m_pPointer, aRhs.m_pPointer);
+        m_pPointer = std::exchange(aRhs.m_pPointer, nullptr);
     }
 
     GamePtr& operator=(const GamePtr<T>& acRhs)
