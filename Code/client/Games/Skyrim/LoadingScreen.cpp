@@ -12,11 +12,7 @@ struct ScaleFormReturn
     void* ptrs[7];      // again don't know if this is located here
     uint32_t values[6]; // again don't know if this is located here, this is used to make sure we land on the correct offsets of 32/64bits
     uint8_t someBool50; // 50 - 34
-#if TP_PLATFORM_64
     uint8_t pad51[7];
-#else
-    uint8_t pad35[3];
-#endif
     void* ptrs2[4];
     ScaleFormValue* scaleformValue; // 78 - 48
 };
