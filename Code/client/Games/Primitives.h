@@ -382,6 +382,11 @@ template <class T> struct GamePtr
 
         m_pPointer = nullptr;
     }
+
+    bool operator==(const GamePtr<T>& aRhs) const noexcept { return m_pPointer == aRhs.m_pPointer; }
+    bool operator!=(const GamePtr<T>& aRhs) const noexcept { return m_pPointer != aRhs.m_pPointer; }
+    bool operator==(const T* aRhs) const noexcept { return m_pPointer == aRhs; }
+    bool operator!=(const T* aRhs) const noexcept { return m_pPointer != aRhs; }
     explicit operator bool() const noexcept { return m_pPointer != nullptr; }
 
 private:
