@@ -307,7 +307,7 @@ public:
     ActorState actorState;
     BSTEventSink<void*> tdEvent;
     BSTEventSink<void*> cmfEvent;
-    IPostAnimationChannelUpdateFunctor unk78;
+    IPostAnimationChannelUpdateFunctor postAnimationChannelUpdateFunctor;
     uint32_t flags1;
     float headTrackingUpdateDelay;
     uint32_t unk84;
