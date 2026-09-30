@@ -22,5 +22,5 @@ struct InterpolationComponent
     };
 
     List<TimePoint> TimePoints;
-    glm::vec3 Position;
+    glm::vec3 Position{};
 };
