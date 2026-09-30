@@ -330,7 +330,11 @@ template <class T> struct GamePtr
             m_pPointer->handleRefObject.IncRef();
     }
 
-    GamePtr(GamePtr<T>&& aRhs) { std::swap(m_pPointer, aRhs.m_pPointer); }
+    GamePtr(GamePtr<T>&& aRhs) noexcept
+        : m_pPointer(nullptr)
+    {
+        std::swap(m_pPointer, aRhs.m_pPointer);
+    }
 
     GamePtr& operator=(const GamePtr<T>& acRhs)
     {
@@ -356,18 +360,18 @@ template <class T> struct GamePtr
         return *this;
     }
 
-    GamePtr& operator=(GamePtr<T>&& aRhs)
+    GamePtr& operator=(GamePtr<T>&& aRhs) noexcept
     {
         std::swap(m_pPointer, aRhs.m_pPointer);
 
         return *this;
     }
 
-    T* operator->() { return m_pPointer; }
+    [[nodiscard]] T* operator->() const noexcept { return m_pPointer; }
 
-    T* operator*() { return m_pPointer; }
+    [[nodiscard]] T& operator*() const noexcept { return *m_pPointer; }
 
-    operator T*() { return m_pPointer; }
+    [[nodiscard]] operator T*() const noexcept { return m_pPointer; }
 
     ~GamePtr() { Release(); }
 
@@ -378,6 +382,12 @@ template <class T> struct GamePtr
 
         m_pPointer = nullptr;
     }
+
+    bool operator==(const GamePtr<T>& aRhs) const noexcept { return m_pPointer == aRhs.m_pPointer; }
+    bool operator!=(const GamePtr<T>& aRhs) const noexcept { return m_pPointer != aRhs.m_pPointer; }
+    bool operator==(const T* aRhs) const noexcept { return m_pPointer == aRhs; }
+    bool operator!=(const T* aRhs) const noexcept { return m_pPointer != aRhs; }
+    explicit operator bool() const noexcept { return m_pPointer != nullptr; }
 
 private:
     T* m_pPointer;
