@@ -42,8 +42,6 @@ struct MagicTarget
 
     struct AddTargetData
     {
-        bool CheckAddEffect(void* arArgs, float afResistance);
-
         bool ShouldSync();
         bool IsForbiddenEffect(Actor* apTarget);
 
@@ -66,8 +64,6 @@ struct MagicTarget
     Actor* GetTargetAsActor();
 
     bool AddTarget(AddTargetData& arData, bool aHealPerkBonus, bool aApplyStaminaPerkBonus) noexcept;
-    // this function actually adds the effect
-    bool CheckAddEffect(AddTargetData& arData) noexcept;
     void DispelAllSpells(bool aNow) noexcept;
 
     void* unk04;

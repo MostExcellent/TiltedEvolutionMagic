@@ -7,9 +7,6 @@ struct InventoryEntry;
 
 struct MiddleProcess
 {
-    // void SaveActiveEffects()
-    void LoadActiveEffects(BGSLoadFormBuffer* apLoadGameBuffer);
-
     // 0xB0 - pitch
     uint8_t pad0[0xB8];
     float direction; // B8

@@ -18,7 +18,7 @@ bool EffectItem::IsSlowEffect() const noexcept
     return pEffectSetting->eArchetype == EffectArchetypes::ArchetypeID::kSlowTime;
 }
 
-bool EffectItem::IsInivisibilityEffect() const noexcept
+bool EffectItem::IsInvisibilityEffect() const noexcept
 {
     return pEffectSetting->eArchetype == EffectArchetypes::ArchetypeID::kInvisibility;
 }
