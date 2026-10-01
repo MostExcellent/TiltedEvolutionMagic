@@ -102,6 +102,13 @@ if is_plat("windows") then
     add_defines("NOMINMAX")
 end
 
+-- declared here so config/f with `--asm-client=y` sees it before the platform is known
+option("asm-client")
+    set_default(false)
+    set_showmenu(true)
+    set_description("Emit MSVC assembly listings (/FAcs) for the client into $(builddir)/asm")
+option_end()
+
 -- add projects
 includes("Libraries")
 includes("Code")
