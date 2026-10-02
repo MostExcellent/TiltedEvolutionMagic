@@ -13,8 +13,10 @@ struct BSAnimationGraphManager
 
     void Release()
     {
+        // MSVC dispatches delete to the engine's scalar deleting destructor with flag 1, which frees via the engine allocator.
+        // This matches the game's internal behavior.
         if (InterlockedDecrement(&refCount) == 0)
-            this->~BSAnimationGraphManager();
+            delete this;
     }
 
     volatile LONG refCount;

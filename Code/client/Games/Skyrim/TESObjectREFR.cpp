@@ -130,158 +130,154 @@ using TiltedPhoques::Serialization;
 
 void TESObjectREFR::SaveAnimationVariables(AnimationVariables& aVariables) const noexcept
 {
-    BSAnimationGraphManager* pManager = nullptr;
-    if (animationGraphHolder.GetBSAnimationGraph(&pManager))
+    BSAnimationGraphManagerPtr spManager = animationGraphHolder.GetAnimationGraphPtr();
+    if (!spManager)
+        return;
+
+    BSAnimationGraphManager* pManager = spManager.get();
+    BSScopedLock<BSRecursiveLock> _{pManager->lock};
+
+    if (pManager->animationGraphIndex < pManager->animationGraphs.size)
     {
-        BSScopedLock<BSRecursiveLock> _{pManager->lock};
+        auto* pActor = Cast<Actor>(this);
+        if (!pActor)
+            return;
 
-        if (pManager->animationGraphIndex < pManager->animationGraphs.size)
+        const BShkbAnimationGraph* pGraph = nullptr;
+
+        if (pActor->formID == 0x14)
+            pGraph = pManager->animationGraphs.Get(0);
+        else
+            pGraph = pManager->animationGraphs.Get(pManager->animationGraphIndex);
+
+        if (!pGraph)
+            return;
+
+        if (!pGraph->behaviorGraph || !pGraph->behaviorGraph->stateMachine || !pGraph->behaviorGraph->stateMachine->name)
+            return;
+
+        auto* pExtendedActor = pActor->GetExtension();
+        if (pExtendedActor->GraphDescriptorHash == 0)
         {
-            auto* pActor = Cast<Actor>(this);
-            if (!pActor)
-                return;
-
-            const BShkbAnimationGraph* pGraph = nullptr;
-
+            // Force third person graph to be used on player
             if (pActor->formID == 0x14)
-                pGraph = pManager->animationGraphs.Get(0);
+                pExtendedActor->GraphDescriptorHash = pManager->GetDescriptorKey(0);
             else
-                pGraph = pManager->animationGraphs.Get(pManager->animationGraphIndex);
-
-            if (!pGraph)
-                return;
-
-            if (!pGraph->behaviorGraph || !pGraph->behaviorGraph->stateMachine || !pGraph->behaviorGraph->stateMachine->name)
-                return;
-
-            auto* pExtendedActor = pActor->GetExtension();
-            if (pExtendedActor->GraphDescriptorHash == 0)
-            {
-                // Force third person graph to be used on player
-                if (pActor->formID == 0x14)
-                    pExtendedActor->GraphDescriptorHash = pManager->GetDescriptorKey(0);
-                else
-                    pExtendedActor->GraphDescriptorHash = pManager->GetDescriptorKey();
-            }
-
-            auto pDescriptor = AnimationGraphDescriptorManager::Get().GetDescriptor(pExtendedActor->GraphDescriptorHash);
-
-            // Modded behavior check if descriptor wasn't found
-            if (!pDescriptor)
-                pDescriptor = BehaviorVarPatch(pManager, pActor);
-
-            if (!pDescriptor)
-                return;
-
-            const auto* pVariableSet = pGraph->behaviorGraph->animationVariables;
-
-            if (!pVariableSet)
-                return;
-
-            aVariables.Booleans.assign(pDescriptor->BooleanLookUpTable.size(), false);
-            aVariables.Floats.assign(pDescriptor->FloatLookupTable.size(), 0.f);
-            aVariables.Integers.assign(pDescriptor->IntegerLookupTable.size(), 0);
-
-            for (size_t i = 0; i < pDescriptor->BooleanLookUpTable.size(); ++i)
-            {
-                const auto idx = pDescriptor->BooleanLookUpTable[i];
-
-                if (pVariableSet->size > idx && pVariableSet->data[idx] != 0)
-                    aVariables.Booleans[i] = true;
-            }
-
-            for (size_t i = 0; i < pDescriptor->FloatLookupTable.size(); ++i)
-            {
-                const auto idx = pDescriptor->FloatLookupTable[i];
-
-                if (pVariableSet->size > idx)
-                    aVariables.Floats[i] = *reinterpret_cast<float*>(&pVariableSet->data[idx]);
-            }
-
-            for (size_t i = 0; i < pDescriptor->IntegerLookupTable.size(); ++i)
-            {
-                const auto idx = pDescriptor->IntegerLookupTable[i];
-
-                if (pVariableSet->size > idx)
-                    aVariables.Integers[i] = *reinterpret_cast<uint32_t*>(&pVariableSet->data[idx]);
-            }
+                pExtendedActor->GraphDescriptorHash = pManager->GetDescriptorKey();
         }
 
-        pManager->Release();
+        auto pDescriptor = AnimationGraphDescriptorManager::Get().GetDescriptor(pExtendedActor->GraphDescriptorHash);
+
+        // Modded behavior check if descriptor wasn't found
+        if (!pDescriptor)
+            pDescriptor = BehaviorVarPatch(pManager, pActor);
+
+        if (!pDescriptor)
+            return;
+
+        const auto* pVariableSet = pGraph->behaviorGraph->animationVariables;
+
+        if (!pVariableSet)
+            return;
+
+        aVariables.Booleans.assign(pDescriptor->BooleanLookUpTable.size(), false);
+        aVariables.Floats.assign(pDescriptor->FloatLookupTable.size(), 0.f);
+        aVariables.Integers.assign(pDescriptor->IntegerLookupTable.size(), 0);
+
+        for (size_t i = 0; i < pDescriptor->BooleanLookUpTable.size(); ++i)
+        {
+            const auto idx = pDescriptor->BooleanLookUpTable[i];
+
+            if (pVariableSet->size > idx && pVariableSet->data[idx] != 0)
+                aVariables.Booleans[i] = true;
+        }
+
+        for (size_t i = 0; i < pDescriptor->FloatLookupTable.size(); ++i)
+        {
+            const auto idx = pDescriptor->FloatLookupTable[i];
+
+            if (pVariableSet->size > idx)
+                aVariables.Floats[i] = *reinterpret_cast<float*>(&pVariableSet->data[idx]);
+        }
+
+        for (size_t i = 0; i < pDescriptor->IntegerLookupTable.size(); ++i)
+        {
+            const auto idx = pDescriptor->IntegerLookupTable[i];
+
+            if (pVariableSet->size > idx)
+                aVariables.Integers[i] = *reinterpret_cast<uint32_t*>(&pVariableSet->data[idx]);
+        }
     }
 }
 
 void TESObjectREFR::LoadAnimationVariables(const AnimationVariables& aVariables) const noexcept
 {
-    BSAnimationGraphManager* pManager = nullptr;
-    if (animationGraphHolder.GetBSAnimationGraph(&pManager))
+    BSAnimationGraphManagerPtr spManager = animationGraphHolder.GetAnimationGraphPtr();
+    if (!spManager)
+        return;
+    BSAnimationGraphManager* pManager = spManager.get();
+    BSScopedLock<BSRecursiveLock> _{pManager->lock};
+    if (pManager->animationGraphIndex < pManager->animationGraphs.size)
     {
-        BSScopedLock<BSRecursiveLock> _{pManager->lock};
+        const auto* pGraph = pManager->animationGraphs.Get(pManager->animationGraphIndex);
 
-        if (pManager->animationGraphIndex < pManager->animationGraphs.size)
+        if (!pGraph)
+            return;
+
+        if (!pGraph->behaviorGraph || !pGraph->behaviorGraph->stateMachine || !pGraph->behaviorGraph->stateMachine->name)
+            return;
+
+        auto* pActor = Cast<Actor>(this);
+        if (!pActor)
+            return;
+
+        auto* pExtendedActor = pActor->GetExtension();
+        if (pExtendedActor->GraphDescriptorHash == 0)
+            pExtendedActor->GraphDescriptorHash = pManager->GetDescriptorKey();
+
+        auto pDescriptor = AnimationGraphDescriptorManager::Get().GetDescriptor(pExtendedActor->GraphDescriptorHash);
+
+        // Modded behavior check if descriptor wasn't found
+        if (!pDescriptor)
+            pDescriptor = BehaviorVarPatch(pManager, pActor);
+
+        if (!pDescriptor)
+            return;
+
+        const auto* pVariableSet = pGraph->behaviorGraph->animationVariables;
+
+        if (!pVariableSet)
+            return;
+
+        for (size_t i = 0; i < pDescriptor->BooleanLookUpTable.size(); ++i)
         {
-            const auto* pGraph = pManager->animationGraphs.Get(pManager->animationGraphIndex);
+            const auto idx = pDescriptor->BooleanLookUpTable[i];
 
-            if (!pGraph)
-                return;
-
-            if (!pGraph->behaviorGraph || !pGraph->behaviorGraph->stateMachine || !pGraph->behaviorGraph->stateMachine->name)
-                return;
-
-            auto* pActor = Cast<Actor>(this);
-            if (!pActor)
-                return;
-
-            auto* pExtendedActor = pActor->GetExtension();
-            if (pExtendedActor->GraphDescriptorHash == 0)
-                pExtendedActor->GraphDescriptorHash = pManager->GetDescriptorKey();
-
-            auto pDescriptor = AnimationGraphDescriptorManager::Get().GetDescriptor(pExtendedActor->GraphDescriptorHash);
-
-            // Modded behavior check if descriptor wasn't found
-            if (!pDescriptor)
-                pDescriptor = BehaviorVarPatch(pManager, pActor);
-
-            if (!pDescriptor)
-                return;
-
-            const auto* pVariableSet = pGraph->behaviorGraph->animationVariables;
-
-            if (!pVariableSet)
-                return;
-
-            for (size_t i = 0; i < pDescriptor->BooleanLookUpTable.size(); ++i)
+            if (pVariableSet->size > idx)
             {
-                const auto idx = pDescriptor->BooleanLookUpTable[i];
-
-                if (pVariableSet->size > idx)
-                {
-                    pVariableSet->data[idx] = aVariables.Booleans.size() > i ? aVariables.Booleans[i] : false;
-                }
-            }
-
-            for (size_t i = 0; i < pDescriptor->FloatLookupTable.size(); ++i)
-            {
-                const auto idx = pDescriptor->FloatLookupTable[i];
-
-                if (pVariableSet->size > idx)
-                {
-                    *reinterpret_cast<float*>(&pVariableSet->data[idx]) = aVariables.Floats.size() > i ? aVariables.Floats[i] : 0.f;
-                }
-            }
-
-            for (size_t i = 0; i < pDescriptor->IntegerLookupTable.size(); ++i)
-            {
-                const auto idx = pDescriptor->IntegerLookupTable[i];
-
-                if (pVariableSet->size > idx)
-                {
-                    *reinterpret_cast<uint32_t*>(&pVariableSet->data[idx]) = aVariables.Integers.size() > i ? aVariables.Integers[i] : 0;
-                }
+                pVariableSet->data[idx] = aVariables.Booleans.size() > i ? aVariables.Booleans[i] : false;
             }
         }
 
-        pManager->Release();
+        for (size_t i = 0; i < pDescriptor->FloatLookupTable.size(); ++i)
+        {
+            const auto idx = pDescriptor->FloatLookupTable[i];
+
+            if (pVariableSet->size > idx)
+            {
+                *reinterpret_cast<float*>(&pVariableSet->data[idx]) = aVariables.Floats.size() > i ? aVariables.Floats[i] : 0.f;
+            }
+        }
+
+        for (size_t i = 0; i < pDescriptor->IntegerLookupTable.size(); ++i)
+        {
+            const auto idx = pDescriptor->IntegerLookupTable[i];
+
+            if (pVariableSet->size > idx)
+            {
+                *reinterpret_cast<uint32_t*>(&pVariableSet->data[idx]) = aVariables.Integers.size() > i ? aVariables.Integers[i] : 0;
+            }
+        }
     }
 }
 
