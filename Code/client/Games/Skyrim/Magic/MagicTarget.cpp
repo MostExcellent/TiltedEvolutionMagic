@@ -18,18 +18,13 @@
 
 TP_THIS_FUNCTION(TAddTarget, bool, MagicTarget, MagicTarget::AddTargetData& arData);
 TP_THIS_FUNCTION(TCheckAddEffectTargetData, bool, MagicTarget::AddTargetData, void* arArgs, float afResistance);
-TP_THIS_FUNCTION(TFindTargets, bool, MagicCaster, float afEffectivenessMult, int32_t* aruiTargetCount,
-                 TESBoundObject* apSource, char abLoadCast, char abAdjust);
 TP_THIS_FUNCTION(TAdjustForPerks, void, ActiveEffect, Actor* apCaster, MagicTarget* apTarget);
 TP_THIS_FUNCTION(THasPerk, bool, Actor, TESForm* apPerk, void* apUnk1, double* afReturnValue);
-TP_THIS_FUNCTION(TGetPerkRank, uint8_t, Actor, TESForm* apPerk);
 
 static TAddTarget* RealAddTarget = nullptr;
 static TCheckAddEffectTargetData* RealCheckAddEffectTargetData = nullptr;
-static TFindTargets* RealFindTargets = nullptr;
 static TAdjustForPerks* RealAdjustForPerks = nullptr;
 static THasPerk* RealHasPerk = nullptr;
-static TGetPerkRank* RealGetPerkRank = nullptr;
 
 static thread_local bool s_autoSucceedEffectCheck = false;
 static thread_local bool s_applyHealPerkBonus = false;
@@ -188,11 +183,6 @@ bool TP_MAKE_THISCALL(HookCheckAddEffectTargetData, MagicTarget::AddTargetData, 
     return TiltedPhoques::ThisCall(RealCheckAddEffectTargetData, apThis, arArgs, afResistance);
 }
 
-bool TP_MAKE_THISCALL(HookFindTargets, MagicCaster, float afEffectivenessMult, int32_t* aruiTargetCount, TESBoundObject* apSource, char abLoadCast, char abAdjust)
-{
-    return TiltedPhoques::ThisCall(RealFindTargets, apThis, afEffectivenessMult, aruiTargetCount, apSource, abLoadCast, abAdjust);
-}
-
 void TP_MAKE_THISCALL(HookAdjustForPerks, ActiveEffect, Actor* apCaster, MagicTarget* apTarget)
 {
     TiltedPhoques::ThisCall(RealAdjustForPerks, apThis, apCaster, apTarget);
@@ -221,30 +211,19 @@ bool TP_MAKE_THISCALL(HookHasPerk, Actor, TESForm* apPerk, void* apUnk1, double*
     return TiltedPhoques::ThisCall(RealHasPerk, apThis, apPerk, apUnk1, afReturnValue);
 }
 
-uint8_t TP_MAKE_THISCALL(HookGetPerkRank, Actor, TESForm* apPerk)
-{
-    return TiltedPhoques::ThisCall(RealGetPerkRank, apThis, apPerk);
-}
-
 static TiltedPhoques::Initializer s_magicTargetHooks([]() {
     POINTER_SKYRIMSE(TAddTarget, addTarget, 34526);
     POINTER_SKYRIMSE(TCheckAddEffectTargetData, checkAddEffectTargetData, 34525);
-    POINTER_SKYRIMSE(TFindTargets, findTargets, 34410);
     POINTER_SKYRIMSE(TAdjustForPerks, adjustForPerks, 34053);
     POINTER_SKYRIMSE(THasPerk, hasPerk, 21622);
-    POINTER_SKYRIMSE(TGetPerkRank, getPerkRank, 37698);
 
     RealAddTarget = addTarget.Get();
     RealCheckAddEffectTargetData = checkAddEffectTargetData.Get();
-    RealFindTargets = findTargets.Get();
     RealAdjustForPerks = adjustForPerks.Get();
     RealHasPerk = hasPerk.Get();
-    RealGetPerkRank = getPerkRank.Get();
 
     TP_HOOK(&RealAddTarget, HookAddTarget);
     TP_HOOK(&RealCheckAddEffectTargetData, HookCheckAddEffectTargetData);
-    TP_HOOK(&RealFindTargets, HookFindTargets);
     TP_HOOK(&RealAdjustForPerks, HookAdjustForPerks);
     TP_HOOK(&RealHasPerk, HookHasPerk);
-    //TP_HOOK(&RealGetPerkRank, HookGetPerkRank);
 });

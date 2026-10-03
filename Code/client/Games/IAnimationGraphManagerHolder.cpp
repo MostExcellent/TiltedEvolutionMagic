@@ -4,6 +4,19 @@
 
 #include <BSAnimationGraphManager.h>
 
+void AnimationGraphManagerReleaser::operator()(BSAnimationGraphManager* apManager) const noexcept
+{
+    if (apManager)
+        apManager->Release();
+}
+
+BSAnimationGraphManagerPtr IAnimationGraphManagerHolder::GetAnimationGraphPtr() const noexcept
+{
+    BSAnimationGraphManager* pManager = nullptr;
+    GetBSAnimationGraph(&pManager);
+    return BSAnimationGraphManagerPtr{pManager};
+}
+
 bool IAnimationGraphManagerHolder::SetVariableFloat(BSFixedString* apVariable, float aValue)
 {
     TP_THIS_FUNCTION(TSetFloatVariable, bool, IAnimationGraphManagerHolder, BSFixedString*, float);
@@ -36,13 +49,7 @@ bool IAnimationGraphManagerHolder::RevertAnimationGraphManager()
     return TiltedPhoques::ThisCall(InternalRevertAnimationGraphManager, this);
 }
 
-bool IAnimationGraphManagerHolder::IsReady()
+bool IAnimationGraphManagerHolder::IsReady() const noexcept
 {
-    BSAnimationGraphManager* pAnimationGraph = nullptr;
-    const auto result = GetBSAnimationGraph(&pAnimationGraph);
-
-    if (pAnimationGraph)
-        pAnimationGraph->Release();
-
-    return result;
+    return !!GetAnimationGraphPtr();
 }

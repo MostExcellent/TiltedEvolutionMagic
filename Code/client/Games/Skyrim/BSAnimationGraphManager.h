@@ -13,8 +13,10 @@ struct BSAnimationGraphManager
 
     void Release()
     {
+        // MSVC dispatches delete to the engine's scalar deleting destructor with flag 1, which frees via the engine allocator.
+        // This matches the game's internal behavior.
         if (InterlockedDecrement(&refCount) == 0)
-            this->~BSAnimationGraphManager();
+            delete this;
     }
 
     volatile LONG refCount;
@@ -24,22 +26,12 @@ struct BSAnimationGraphManager
     BSRecursiveLock lock;  // 98 - 4C
     void* unkPtrAfterLock; // A0 - 58
 
-#if TP_PLATFORM_32
-    void* unkPtrOldrim;
-#endif
-
     uint32_t animationGraphIndex; // A8 - 5C
 
     SortedMap<uint32_t, String> DumpAnimationVariables(bool aPrintVariables);
     uint64_t GetDescriptorKey(int aForceIndex = -1);
 };
 
-#if TP_PLATFORM_64
 static_assert(offsetof(BSAnimationGraphManager, animationGraphs) == 0x40);
 static_assert(offsetof(BSAnimationGraphManager, lock) == 0xA0);
 static_assert(offsetof(BSAnimationGraphManager, animationGraphIndex) == 0xB0);
-#else
-static_assert(offsetof(BSAnimationGraphManager, animationGraphs) == 0x20);
-static_assert(offsetof(BSAnimationGraphManager, lock) == 0x4C);
-static_assert(offsetof(BSAnimationGraphManager, animationGraphIndex) == 0x5C);
-#endif

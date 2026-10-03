@@ -3,13 +3,21 @@
 struct BSAnimationGraphManager;
 struct BSFixedString;
 
+// Workaround until actual ref counting RE/handling
+struct AnimationGraphManagerReleaser;
+using BSAnimationGraphManagerPtr = std::unique_ptr<BSAnimationGraphManager, AnimationGraphManagerReleaser>;
+
 struct IAnimationGraphManagerHolder
 {
     virtual ~IAnimationGraphManagerHolder();
 
     virtual bool SendAnimationEvent(BSFixedString* apAnimEvent);
 
-    virtual bool GetBSAnimationGraph(BSAnimationGraphManager** aPtr) const;
+private:
+    // Param is actually out intrusive ref count ptr by ref, external callers must use wrapper & AnimationGraphManagerPtr for now
+    virtual bool GetBSAnimationGraph(BSAnimationGraphManager** aPtr) const noexcept;
+
+public:
     virtual uint32_t sub_3();
     virtual uint32_t sub_4();
     virtual uint32_t sub_5();
@@ -24,6 +32,9 @@ struct IAnimationGraphManagerHolder
     virtual uint32_t sub_E();
     virtual uint32_t sub_F();
 
+    /** Workaround wrapper, null here maps to game virtual fn returning false. BSAnimationGraphManagerPtr releases ref on destruction */
+    [[nodiscard]] BSAnimationGraphManagerPtr GetAnimationGraphPtr() const noexcept;
+
     virtual bool GetVariableFloat(BSFixedString* apVariable, float* apReturn);
     virtual bool GetVariableInt(BSFixedString* apVariable, uint32_t* apReturn);
     virtual bool GetVariableBool(BSFixedString* apVariable, bool* apReturn);
@@ -31,6 +42,11 @@ struct IAnimationGraphManagerHolder
     bool SetVariableFloat(BSFixedString* apVariable, float aValue);
     bool SetVariableInt(BSFixedString* apVariable, int32_t aValue);
     bool SetVariableBool(BSFixedString* apVariable, bool aValue);
-    bool IsReady();
+    bool IsReady() const noexcept;
     bool RevertAnimationGraphManager();
+};
+
+struct AnimationGraphManagerReleaser
+{
+    void operator()(BSAnimationGraphManager* apManager) const noexcept;
 };

@@ -67,15 +67,6 @@ void TESNPC::Initialize() noexcept
     flags |= 0x200000;
 }
 
-void TESForm::Save_Reversed(const uint32_t aChangeFlags, Buffer::Writer& aWriter)
-{
-    if (aChangeFlags & 1)
-    {
-        aWriter.WriteBytes(reinterpret_cast<uint8_t*>(&flags), 4);
-        aWriter.WriteBytes(reinterpret_cast<uint8_t*>(&unk10), 2);
-    }
-}
-
 void TESForm::SetSkipSaveFlag(bool aSet) noexcept
 {
     if (aSet)

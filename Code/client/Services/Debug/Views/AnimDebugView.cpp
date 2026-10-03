@@ -94,8 +94,8 @@ void DebugService::DrawAnimDebugView()
         s_blacklist.clear();
     }
 
-    BSAnimationGraphManager* pManager = nullptr;
-    pActor->animationGraphHolder.GetBSAnimationGraph(&pManager);
+    BSAnimationGraphManagerPtr spManager = pActor->animationGraphHolder.GetAnimationGraphPtr();
+    BSAnimationGraphManager* pManager = spManager.get();
 
     if (!pManager)
     {

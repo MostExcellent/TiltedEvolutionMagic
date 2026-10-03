@@ -100,7 +100,6 @@ struct TESForm : BaseFormComponent
     virtual void unk_3A();
 
     // void CopyFromEx(TESForm* rhs);
-    void Save_Reversed(uint32_t aChangeFlags, Buffer::Writer& aWriter);
     void SetSkipSaveFlag(bool aSet) noexcept;
     uint32_t GetChangeFlags() const noexcept;
 
